@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 357 500"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 357 420"
      xmlns:xlink="http://www.w3.org/1999/xlink">
 	<defs>
 		<style>
@@ -63,19 +63,22 @@
 			stroke-width: 9px;
 		}
 		</style>
-	</defs>
-
-	<rect id="background"
+		<rect id="background"
 		x="0" y="0"
 		width="100%" height="100%" 
 		x-fill="color"
 		ry="15" />
+		<clipPath id="clip">
+			<use xlink:href="#background"/>
+		</clipPath>
+	</defs>
 
 	<image id="artwork"
 		x="-99" y="0"
-		width="635" height="500"
+		width="536" height="420"
 		xlink:href="../artwork/driver-200b.jpg"
-		preserveAspectRatio="none" />
+		preserveAspectRatio="none"
+		clip-path="url(#clip)" />
 
 	<g class="top">
 		<circle cx="90" cy="86" r="64" x-stroke="ringColor" />
@@ -84,14 +87,14 @@
 				200<!--CONTENT:distance-->
 			</p>
 		</foreignObject>
-		<g class="icon" x-opacity="showIcon1" transform="translate(49,27) scale(0.23,0.23)" cx-fill="color">
+		<g class="icon" x-opacity="showIcon1" transform="translate(49,37) scale(0.23,0.23)" cx-fill="color">
 			<!--CONTENT:icon-->
 		</g>
 		<line x1="138" y1="44" x2="48" y2="128" x-stroke="ringColor" x-opacity="crossIcon1" />
 
 		<g class="ignore" x-opacity="showIcon2">
 			<circle cx="90" cy="226" r="44" x-stroke="ringColor" />
-			<g class="icon" transform="translate(58,180) scale(0.18,0.18)" cx-fill="color">
+			<g class="icon" transform="translate(58,188) scale(0.18,0.18)" cx-fill="color">
 				<!--CONTENT:icon-->
 			</g>
 			<line x1="122" y1="194" x2="58" y2="258" x-stroke="ringColor" x-opacity="crossIcon2" />

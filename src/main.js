@@ -1,6 +1,6 @@
 'use strict';
 
-import { $, $$, $copy } from './utils';
+import { $, $copy, wait } from './utils';
 import { newGame } from './game';
 import CARDS from './cards';
 
@@ -9,93 +9,195 @@ const $players = $('#players');
 const $status = $('#status');
 const $arena = $('#arena');
 
+const message = async str => {
+	$status.textContent = str;
+	$status.classList.add('message');
+	await wait(1000);
+	$status.classList.remove('message');
+};
+
 const startRenderer = game => {
 
-	game.on('setup', players => { // render players
+	game.on('setup', () => { // render players
 		$players.innerHTML = '';
-		players.forEach(player => {
+		game.players.forEach(player => {
 			let $player = $copy('#tmpl-player');
-			$player.setAttribute('id', `player${player.index}`);
-			$('.playername', $player).textContent = player.name + ` (${player.type})`;
+			$player.setAttribute('id', `player${player.uid}`);
+			$('.playername', $player).textContent = `${player.name} (${player.type})`;
+			$('.tokens', $player).textContent = `${player.tokens} tokens`;
 			$players.appendChild($player);
 		});
 	});
 
-	game.on('deck-change', deck => {
-		// render deck of cards
-		$('.count', $deck).innerHTML = 'Deck: ' + deck.length + ' cards';
-		$$('img', $deck).forEach(($card, i) => {
-			$card.style.display = deck.length > i ? 'block' : 'hidden';
+	let resolvePickCard;
+
+	game.on('redraw', async redrawCount => {
+		await message(`Pick a card to redraw (${redrawCount + 1}/2)`);
+		//enlargeHand();
+		$('#skipredraw').style.display = 'block';
+		resolvePickCard = card => {
+			try {
+				game.redraw(card);
+				resolvePickCard = null;
+				//shrinkHand();
+				$('#skipredraw').style.display = 'none';
+			} catch (e) {
+				$status.textContent = e.message;
+			}
+		};
+	});
+
+	game.on('start-round', async startPlayer => {
+		await message('Round start');
+		if (startPlayer.type === 'human') {
+			await message('You will go first');
+		} else {
+			await message('Opponent will go first');
+		}
+	});
+
+	game.on('start-turn', async (activePlayer) => {
+		game.players.forEach(player => {
+			$(`#player${player.uid} .score`).textContent = `${player.score} miles`;
+			$(`#player${player.uid}`).classList.toggle('active', player === activePlayer);
 		});
+		if (activePlayer.type === 'human') {
+			await message('Your turn');
+			$('#pass').style.display = 'block';
+			resolvePickCard = async card => {
+				try {
+					console.log('trying to play', card);
+					await game.play(card);
+					resolvePickCard = null;
+				} catch (e) {
+					message(e.message);
+				}
+			};
+		} else {
+			await message('Opponent\'s turn');
+		}
 	});
 
-	game.on('player-hand-change', player => { // render player hand
-		let $area = $(`#player${player.index} .hand`);
-		player.hand.forEach(card => moveCard(renderCard(card), $area));
+	game.on('pass', async player => {
+		if (player.type === 'human') {
+			await message('You have passed');
+		} else {
+			await message('Opponent has passed');
+		}
 	});
 
-	game.on('player-protection-change', player => {
-		let $area = $(`#player${player.index} .protection-area`);
-		player.protection.forEach(card => moveCard(renderCard(card), $area));
+	game.on('revive', async () => {
+		await message('Pick a card to immediately play');
+		//enlargeDiscard();
+		resolvePickCard = card => {
+			if (game.revive(card)) {
+				//shrinkDiscard()
+			}
+		};
 	});
 
-	game.on('player-sabotage-change', player => {
-		let $area = $(`#player${player.index} .sabotage-area`);
-		player.sabotage.forEach(card => moveCard(renderCard(card), $area));
-	});
-
-	game.on('player-heat-change', player => {
-		let $area = $(`#player${player.index} .heat-area`);
-		player.heat.forEach(card => moveCard(renderCard(card), $area));
-	});
-
-	game.on('player-journey-change', player => {
-		let $area = $(`#player${player.index} .journey-area`);
-		player.journey.forEach(card => moveCard(renderCard(card), $area));
-		$(`#player${player.index} .score`).textContent = `${player.score} miles`;
-	});
-
-	game.on('discard', discard => {
-		discard.forEach(card => {
-			console.log(`.hand #${card.id}`);
-			let previouslyInHand = !!$(`.hand #${card.uid}`);
-			discardCard(renderCard(card), previouslyInHand);
+	game.on('end-round', (winner, gameEnd) => {
+		game.players.forEach(player => {
+			$(`#player${player.uid} .tokens`).textContent = `${player.tokens} tokens`;
+			$(`#player${player.uid}`).classList.remove('active');
 		});
+		message(`${winner.type === 'human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
 	});
 
-	game.on('turn-change', turn => {
-		// highlight active player
+
+	let zIndex = 40;
+	game.on('card-moved', async (card, from, to) => {
+		let $card = renderCard(card);
+		$card.style.zIndex = zIndex++;
+		if (to.pile === 'discard') {
+			let moveToMiddle = from.pile === 'hand';
+			if (moveToMiddle) {
+				$card.style.transform = `translate(280px, 280px) scale(3)`;
+				setTimeout(() => {
+					$card.classList.add('discarded');
+					setTimeout(() => $arena.removeChild($card), 1000);
+				}, 1000);
+			} else {
+				$card.classList.add('discarded');
+				setTimeout(() => $arena.removeChild($card), 1000);
+			}
+		}
+		
+		game.players.forEach(player => {
+			fanCards($(`#player${player.uid} .hand`), player.hand);
+			fanCards($(`#player${player.uid} .journey-area`), player.journey);
+			fanCards($(`#player${player.uid} .protection-area`), player.protection);
+			fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage);
+		});
+		await wait(100);
 	});
 
 	game.on('status', msg => $status.textContent = msg);
 
-	$deck.addEventListener('click', () => game.draw());
+	$('#skipredraw').addEventListener('click', () => {
+		if (resolvePickCard) {
+			resolvePickCard();
+		}
+	});
+	$('#pass').addEventListener('click', () => {
+		if (resolvePickCard) {
+			resolvePickCard();
+		}
+	});
+
+	const fanCards = ($pile, cards) => { // spread cards as a fan
+		let cardWidth = $('.card').offsetWidth,
+			coords = getCoords($pile),
+			width = Math.min(cardWidth * cards.length, $pile.offsetWidth),
+			x = coords.x + $pile.offsetWidth / 2 - width / 2,
+			offset = width / (cards.length);
+		
+		if (offset < cardWidth) {
+			offset -= (cardWidth - ($pile.offsetWidth / cards.length)) / cards.length;
+		}
+
+		cards.forEach((card, i) => {
+			renderCard(card).style.transform = `translate(${x + i * offset}px, ${coords.y}px)`;
+		});
+	};
 
 	const renderCard = card => {
-		let $card = $(`#${card.uid}`);
+		let $card = $(`#card${card.uid}`);
 		if (!$card) {
 			$card = $copy('#tmpl-card');
-			$card.setAttribute('id', card.uid);
-			$('img', $card).src = `/cards/${card.id}.png`;
-			$card.addEventListener('click', () => game.play(card));
-			$('.discard', $card).addEventListener('click', e => {
-				game.discard(card);
-				e.stopPropagation();
+			$card.setAttribute('id', `card${card.uid}`);
+			$('img', $card).src = `/cards/${card.id}-sm.png`;
+			$card.addEventListener('click', () => {
+				if (resolvePickCard) {
+					resolvePickCard(card);
+				}
 			});
+			let { x, y } = getCoords($deck);
+			$card.style.transform = `translate(${x}px, ${y}px)`;
+			$arena.appendChild($card);
 		}
 		return $card;
 	};
 };
 
+// get position of an element relative to the arena
+const getCoords = ($el) => {
+	let c1 = $arena.getBoundingClientRect(),
+		c2 = $el.getBoundingClientRect();
+	return {
+		x: c2.x - c1.x,
+		y: c2.y - c1.y
+	};
+};
 
-const moveCard = ($card, $newArea, newX, newY, enlarge) => {
+const moveCardOld = ($card, $newArea, newX, newY, enlarge) => {
 	if ($card.parentElement === $newArea) { return; }
 	let $origin = $card.parentElement ? $card : $deck;
 	let { x, y } = $origin.getBoundingClientRect();
 	x -= $arena.getBoundingClientRect().x;
 	y -= $arena.getBoundingClientRect().y;
 	$card.style.transform = `translate(${x}px, ${y}px)`;
-	$arena.appendChild($card);
+	
 	setTimeout(() => { // wait so that animation will work
 		if ($newArea) {
 			let dimA = $arena.getBoundingClientRect(),
@@ -113,7 +215,7 @@ const moveCard = ($card, $newArea, newX, newY, enlarge) => {
 	}, 1000);
 };
 
-const discardCard = ($card, moveToMiddle) => {
+const burnCard = ($card, moveToMiddle) => {
 	console.log('-- discard', moveToMiddle)
 	if ($card.classList.contains('discarded')) { return; }
 	if (moveToMiddle) {

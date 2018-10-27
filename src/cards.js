@@ -53,7 +53,7 @@ module.exports = [
 	{
 		type: 'sabotage',
 		name: 'Speed Limit',
-		description: 'Play on an opponent’s sabotage pile to stop them playing journey cards higher than 25.',
+		description: 'Play on an opponent’s sabotage pile to stop them playing journey cards higher than 15.',
 		quote: 'I gave a beat cop 20 bucks to keep a look out.',
 		artwork: 'sabotage-speedlimit.jpg',
 		causes: 'speedlimit',
@@ -62,7 +62,7 @@ module.exports = [
 	{
 		type: 'sabotage',
 		name: 'Pursuit',
-		description: 'Play on an opponent’s sabotage pile to stop them playing journey cards lower then 100.',
+		description: 'Play on an opponent’s sabotage pile to stop them playing journey cards lower then 75.',
 		quote: 'A buck here, a buck there, you make your name with the cops. I dialed 911 and hit call.',
 		artwork: 'sabotage-pursuit.jpg',
 		causes: 'pursuit',
@@ -114,7 +114,7 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles, regardless of Stinger.',
 		quote: 'Years doing jobs taught me a thing or two about mechanics. But this gal knew her way about a Plymouth. She was part of the car.',
 		artwork: 'driver-mechanic.jpg',
-		distance: 15,
+		distance: 10,
 		ignores: 'puncture',
 		quantity: 3
 	},
@@ -134,9 +134,9 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles, regardless of Speed Limit.',
 		quote: 'The mayor’s an old friend. She swerves to avoid a crossing gal. ’Broads!’ I shouted. How was I supposed to know she had daughter. We didnt speak a word for 60 damn miles.',
 		artwork: 'driver-mayor.jpg',
-		distance: 60,
+		distance: 50,
 		ignores: 'speedlimit',
-		quantity: 1
+		quantity: 3
 	},
 
 	// REVIVES
@@ -179,7 +179,7 @@ module.exports = [
 		quote: 'I never trusted Jenkins. Had her hat in too many rings. But desperate times... I gave her the keys.',
 		artwork: 'driver-jenkins.jpg',
 		causes: 'turncoat',
-		distance: 30,
+		distance: 20,
 		quantity: 3
 	},
 	{
@@ -188,7 +188,7 @@ module.exports = [
 		description: 'Play to an opponent’s Journey pile and draw two cards.',
 		quote: 'Bill was the kind of bastard you never trust. He’d sell out his own mother for a fix. Hope to never see his gnarly mug again.',
 		artwork: 'driver-bill.jpg',
-		distance: 60,
+		distance: 50,
 		causes: 'turncoat',
 		quantity: 5
 	},
@@ -200,7 +200,7 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		quote: 'The stench of cheap cigarettes. He asks if I’ve got a light. I fumble for a match. Something wasn’t right.',
 		artwork: 'driver-oldsmokey.jpg',
-		distance: 15,
+		distance: 5,
 		quantity: 6
 	},
 	{
@@ -209,7 +209,7 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		quote: 'She said it was better on the outside. Dolly was feeding me a can of lies. It was for my own good. She was trying to save me.',
 		artwork: 'driver-dolly.jpg',
-		distance: 30,
+		distance: 10,
 		quantity: 8
 	},
 	{
@@ -218,7 +218,7 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		quote: 'We go back. Last job he took four slugs to the chest. Never been the same. A stare that crushes hope and fills you with dread.',
 		artwork: 'driver-butler.jpg',
-		distance: 45,
+		distance: 15,
 		quantity: 10
 	},
 	{
@@ -227,7 +227,7 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		quote: 'I run through the alley. A broad calls out ’get in.’ I did. I open my mouth to speak, but she didn’t give a damn who I am.',
 		artwork: 'driver-cat.jpg',
-		distance: 60,
+		distance: 30,
 		quantity: 6
 	},
 	{
@@ -236,7 +236,7 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		quote: 'The outsider. The loner. There are only tales of Briggs, he leaves no witnesses. But he drives stick.',
 		artwork: 'driver-briggs.jpg',
-		distance: 90,
+		distance: 50,
 		quantity: 6
 	},
 	{
@@ -246,7 +246,7 @@ module.exports = [
 		quote: 'The thrill of the chase. We were pushing {{distance}}. I’d heard of Phelps through Ducane. A friend of Ducane is a friend of mine.',
 		artwork: 'driver-wheelman.jpg',
 		quantity: 2,
-		distance: 120
+		distance: 75
 	},
 	{
 		type: 'driver',
@@ -255,6 +255,6 @@ module.exports = [
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		artwork: 'driver-don.jpg',
 		quantity: 3,
-		distance: 150
+		distance: 100
 	}
 ];

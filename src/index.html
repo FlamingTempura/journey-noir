@@ -34,14 +34,19 @@
 	<div id="arena">
 		<div id="players"></div>
 		<div id="deck">
-			<div class="card"><img src="cards/back.png"></div>
-			<div class="card"><img src="cards/back.png"></div>
-			<div class="card"><img src="cards/back.png"></div>
-			<div class="card"><img src="cards/back.png"></div>
-			<div class="card"><img src="cards/back.png"></div>
+			<div class="card"><img src="assets/back.png"></div>
+			<div class="card"><img src="assets/back.png"></div>
+			<div class="card"><img src="assets/back.png"></div>
+			<div class="card"><img src="assets/back.png"></div>
+			<div class="card"><img src="assets/back.png"></div>
 			<div class="count"></div>
 		</div>
 		<div id="status"></div>
+		<div id="toolbar">
+			<button id="pass">Pass</button>
+			<button id="skipredraw">Skip redraw</button>
+			<button id="cancel">Cancel</button>
+		</div>
 	</div>
 
 	<div id="animation-layer">
@@ -49,12 +54,14 @@
 
 	<template id="tmpl-player">
 		<div class="player">
-			<div class="playername"></div>
-			<div class="score">0 miles</div>
+			<div class="playerinfo">
+				<div class="playername"></div>
+				<div class="score">0 miles</div>
+				<div class="tokens">0 tokens</div>
+			</div>
 			<div class="tableau">
 				<div class="protection-area">Protection</div>
 				<div class="sabotage-area">Sabotage</div>
-				<div class="heat-area">Heat</div>
 				<div class="journey-area">Journey</div>
 				<div class="hand">Hand</div>
 			</div>

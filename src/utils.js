@@ -6,8 +6,6 @@ export const $copy = (selector, $root = document) => $('*', $root.importNode($(s
 
 export const times = (n, cb) => Array(n).fill(0).map((u, i) => cb(i));
 
-export const clone = obj => Object.assign({}, obj);
-
 export const shuffle = (arr) => {
     var j, x, i;
     for (i = arr.length - 1; i > 0; i--) {
@@ -22,7 +20,6 @@ export const shuffle = (arr) => {
 export const random = (min, max) => Math.round(min + Math.random() * (max - min));
 
 export const wait = duration => new Promise(resolve => {
-	console.log('wait', duration)
 	setTimeout(resolve, duration);
 });
 
@@ -48,3 +45,5 @@ export const removeEl = (arr, el) => {
 		arr.splice(i, 1);
 	}
 };
+
+export const pick = arr => arr[Math.floor(Math.random() * arr.length)];
