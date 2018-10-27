@@ -1,0 +1,264 @@
+@red: #ff5252;
+@green: #33d9b2;
+@orange: #ff793f;
+@yellow: #ffb142;
+@blue: #34ace0;
+@violet: #40407a;
+
+@arenaheight: 800px;
+@arenawidth: 1200px;
+
+@cardheight: @arenaheight / 6;
+@cardwidth: @cardheight * (635 / 889); // "poker size"
+* {
+	box-sizing: border-box;
+}
+body {
+	margin: 0;
+	font-family: sans-serif;
+	background: url("/assets/felt.jpg") center top;
+}
+
+.vignette {
+	background: transparent radial-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5));
+	width: 100%;
+	height: 100%;
+	position: absolute;
+	top: 0;
+}
+
+#arena {
+	width: @arenawidth;
+	height: @arenaheight;
+	margin: 20px auto;
+	overflow: hidden;
+	position: relative;
+	color: white;
+	& > .card {
+		position: absolute;
+		top: 0;
+		left: 0;
+		z-index: 200;
+	}
+}
+
+.dlg {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: rgba(0, 0, 0, 0.3);
+	z-index: 1000;
+}
+
+.dlg-content {
+	margin: 30px auto;
+	background: white;
+	border-radius: 10px;
+	width: 400px;
+	padding: 18px;
+	box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.4);
+	text-align: center;
+}
+
+#dlg-help {
+	display: none;
+}
+
+@cardspacing: 3px;
+
+.card {
+	position: relative;
+	width: @cardwidth;
+	height: @cardheight;
+	display: inline-block;
+	padding: 2px;
+	transition: opacity 0.2s ease 0.8s,
+				transform 0.8s ease 0s;
+	opacity: 1;
+	z-index: 30;
+	cursor: pointer;
+	img {
+		width: 100%;
+		box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3)
+	}
+	.discard {
+		position: absolute;
+		bottom: 10px;
+		left: 10px;
+		right: 10px;
+		display: none;
+		z-index: 10;
+	}
+	&:hover {
+		transform: scale(1.3);
+		z-index: 40;
+	}
+	.burn {
+		position: absolute;
+		top: 2px;
+		bottom: 2px;
+		right: 2px;
+		left: 2px;
+		background: black;
+		border-radius: 3px;
+		opacity: 0;
+		transition: opacity 1s ease;
+		z-index: 4;
+	}
+	&.discarded {
+		.discard { display: none; }
+		.burn {
+			opacity: 1;
+		}
+		opacity: 0;
+	}
+}
+
+.well {
+	box-shadow: inset 1px 1px 3px 1px rgba(0, 0, 0, 0.6);
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	background: rgba(0, 0, 0, 0.17);
+	border-radius: 5px;
+	font-size: 11px;
+	color: rgba(255, 255, 255, 0.3);
+	text-align: center;
+	line-height: @cardheight;
+}
+
+.stack {
+	.card {
+		position: absolute;
+		border-radius: 3px;
+		overflow: hidden;
+		padding: 0;
+		box-shadow: -1px -1px 1px rgba(255, 255, 255, 0.4);
+		top: 10px;
+		left: 10px;
+		.cards(5);
+		.cards(@n, @i: 0) when (@i =< @n) {
+			&:nth-child(@{i}) {
+				left: @i * 2px;
+				top: @i * 2px;
+				z-index: @i + 100;
+			}
+			.cards(@n, (@i + 1));
+		}
+	}
+}
+
+#deck {
+	&:extend(.well);
+	&:extend(.stack all);
+	position: absolute;
+	top: @arenaheight / 2 - @cardheight / 2;
+	left: 20px;
+	width: @cardwidth;
+	height: @cardheight;
+}
+
+@tableauspacing: 10px;
+
+#players {
+	.player {
+		position: absolute;
+		left: 0;
+		height: 3 * @cardheight + 4 * @tableauspacing;
+		width: 100%;
+		&:nth-child(1) {
+			top: -@cardheight;
+			.tableau {
+				transform: rotate(180deg);
+				.hand {
+					display: none;
+				}
+				.card {
+					transform: rotate(180deg);
+				}
+			}
+		}
+		&:nth-child(2) {
+			top: 2 * @cardheight + 4 * @tableauspacing;
+			border-top: 3px solid rgba(255, 255, 255, 0.1);
+			.tableau {
+				.hand .card .discard {
+					display: block;
+				}
+				.heat-area {
+					left: 0;
+				}
+				.sabotage-area {
+					left: @cardwidth + @tableauspacing;
+				}
+				.protection-area {
+					left: 2 * (@cardwidth + @tableauspacing);
+				}
+			}
+		}
+		.playername {
+			position: absolute;
+			left: 20px;
+			top: 50%;
+			font-weight: bold;
+			font-size: 14px;
+		}
+		.score {
+			position: absolute;
+			left: 20px;
+			top: 60%;
+			font-weight: bold;
+			font-size: 18px;
+		}
+		.tableau {
+			position: absolute;
+			top: @tableauspacing;
+			left: 180px;
+			width: 8 * @cardwidth + 2 * @tableauspacing;
+			height: 3 * @cardheight + 2 * @tableauspacing;
+			.protection-area {
+				&:extend(.well);
+				position: absolute;
+				left: 0;
+				top: 0;
+				width: 6 * @cardwidth;
+				height: @cardheight;
+			}
+			.sabotage-area {
+				&:extend(.well);
+				&:extend(.stack all);
+				position: absolute;
+				top: 0;
+				left: 6 * @cardwidth + @tableauspacing;
+				width: @cardwidth;
+				height: @cardheight;
+			}
+			.heat-area {
+				&:extend(.well);
+				&:extend(.stack all);
+				position: absolute;
+				top: 0;
+				left: 7 * @cardwidth + 2 * @tableauspacing;
+				width: @cardwidth;
+				height: @cardheight;
+			}
+			.journey-area {
+				&:extend(.well);
+				position: absolute;
+				top: @cardheight + @tableauspacing;
+				left: 0;
+				width: 100%;
+				height: @cardheight;
+			}
+			.hand {
+				&:extend(.well);
+				position: absolute;
+				top: 2 * (@cardheight + @tableauspacing);
+				left: 0;
+				width: 100%;
+				height: @cardheight;
+			}
+		}
+		
+	}
+}

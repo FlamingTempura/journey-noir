@@ -1,0 +1,74 @@
+<html>
+<head>
+	<title>1000 miles</title>
+	<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body>
+
+	<div class="vignette"></div>
+	
+	<div class="dlg" id="dlg-intro">
+		<div class="dlg-content">
+			<h1>1000 miles</h1>
+			
+			<p>Welcome to 1000 miles, a card game based on <a href="http://en.wikipedia.org/wiki/Mille_Bornes">Mille Bornes</a>.</p>
+			
+			<p>The objective is to reach 1000 miles <i>exactly</i> before your opponent does.</p>
+
+			<p>You may only place a distance card when you have a Go card on top, and you may not travel further than any speed limit indicates.</p>
+
+			<input type="button" id="play" value="Play against the computer">
+			<input type="button" id="help" value="Help">
+		</div>
+	</div>
+
+
+	<div class="dlg" id="dlg-help">
+		<div class="dlg-content">
+			<h1>Help</h1>
+			<div id="all-cards"></div>
+		</div>
+	</div>
+
+	<div id="arena">
+		<div id="players"></div>
+		<div id="deck">
+			<div class="card"><img src="cards/back.png"></div>
+			<div class="card"><img src="cards/back.png"></div>
+			<div class="card"><img src="cards/back.png"></div>
+			<div class="card"><img src="cards/back.png"></div>
+			<div class="card"><img src="cards/back.png"></div>
+			<div class="count"></div>
+		</div>
+		<div id="status"></div>
+	</div>
+
+	<div id="animation-layer">
+	</div>
+
+	<template id="tmpl-player">
+		<div class="player">
+			<div class="playername"></div>
+			<div class="score">0 miles</div>
+			<div class="tableau">
+				<div class="protection-area">Protection</div>
+				<div class="sabotage-area">Sabotage</div>
+				<div class="heat-area">Heat</div>
+				<div class="journey-area">Journey</div>
+				<div class="hand">Hand</div>
+			</div>
+		</div>
+	</template>
+
+	<template id="tmpl-card">
+		<div class="card">
+			<img>
+			<button class="discard">Discard</button>
+			<div class="burn"></div>
+		</div>
+	</template>
+
+	<script src="/bundle.js"></script>
+</body>
+</html>
