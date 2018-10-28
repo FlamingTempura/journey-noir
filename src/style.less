@@ -5,16 +5,16 @@
 @blue: #34ace0;
 @violet: #40407a;
 
-@arenaheight: 600px;
-@arenawidth: 890px;
+@arenawidth: 800px;
+@arenaheight: 500px;
 
-@tableauspacing: 2px;
-@playerspacing: 12px;
+@arenapadding: 2px;
+@playerspacing: 0;
 
-@cardheight: (@arenaheight - @tableauspacing * 7 - @playerspacing) / 6;
-@cardwidth: @cardheight * (357 / 420);
+@cardratio: 357 / 420;
 
-@tableauwidth: 8 * @cardwidth + 2 * @tableauspacing;
+@cardwidth: (@arenawidth - @arenapadding * 3) / 11;
+@cardheight: @cardwidth / @cardratio;
 
 * {
 	box-sizing: border-box;
@@ -24,6 +24,7 @@ body {
 	margin: 0;
 	font-family: sans-serif;
 	background: url("/assets/felt.jpg") center top;
+	overflow: hidden;
 }
 
 .vignette {
@@ -37,7 +38,7 @@ body {
 #arena {
 	width: @arenawidth;
 	height: @arenaheight;
-	margin: 20px auto;
+	margin: 0 auto;
 	overflow: hidden;
 	position: relative;
 	color: white;
@@ -101,7 +102,7 @@ body {
 	height: @cardheight;
 	display: inline-block;
 	padding: 2px;
-	transition: opacity 0.2s ease 0.8s,
+	transition: opacity 0.3s ease 0.2s,
 				transform 0.8s ease 0s;
 	opacity: 1;
 	z-index: 30;
@@ -135,7 +136,7 @@ body {
 		background: black;
 		border-radius: 1px;
 		opacity: 0;
-		transition: opacity 1s ease;
+		transition: opacity 0.3s ease-in;
 		z-index: 4;
 	}
 	&.discarded {
@@ -184,7 +185,7 @@ body {
 	&:extend(.stack all);
 	position: absolute;
 	top: @arenaheight / 2 - @cardheight / 2;
-	left: @tableauwidth - @cardwidth;
+	left: 9 * @cardwidth + 2 * @arenapadding;
 	width: @cardwidth;
 	height: @cardheight;
 }
@@ -193,7 +194,7 @@ body {
 	.player {
 		position: absolute;
 		left: 0;
-		height: 2 * @cardheight + @tableauspacing;
+		height: @arenaheight / 2;
 		width: 100%;
 		&.active {
 			.playername {
@@ -202,105 +203,93 @@ body {
 			}
 		}
 		&:nth-child(1) {
+			top: 0;
 			.playerinfo {
-				bottom: 140px;
+				bottom: 10px;
 			}
-			.tableau {
-				.hand {
-					top: 0;
-				}
-				.protection-area,
-				.sabotage-area,
-				.journey-area {
-					top: @cardheight + @tableauspacing;
-				}
+			.hand {
+				top: @arenapadding;
+			}
+			.sabotage-area, .journey-area, .score {
+				top: @cardheight + 2 * @arenapadding;
 			}
 		}
 		&:nth-child(2) {
-			top: 3 * @cardheight + 4 * @tableauspacing + @playerspacing;
+			top: @arenaheight / 2;
 			.playerinfo {
-				top: 140px;
+				top: 10px;
 			}
-			.tableau {
-				.hand .card .discard {
-					display: block;
-				}
+			.hand {
+				bottom: @arenapadding;
+			}
+			.sabotage-area, .journey-area, .score {
+				bottom: @cardheight + 2 * @arenapadding;
 			}
 		}
 		.playerinfo {
 			position: absolute;
-			left: @tableauwidth + 10px;
+			left: 0;
 			right: 0;
-			background: rgba(255, 255, 255, 0.2);
-			border-top: 1px rgba(255, 255, 255, 0.4);
-			border-bottom: 1px rgba(255, 255, 255, 0.4);
-			padding: 20px;
-			line-height: 1.4em;
+			padding: 10px;
+			line-height: 1.2em;
 			.playername {
 				font-weight: bold;
-				font-size: 20px;
+				font-size: 14px;
 			}
 			.tokens {
-				font-size: 16px;
-			}
-			.score {
-				font-size: 16px;
+				font-size: 10px;
 			}
 		}
-		.tableau {
+		.score {
+			font-size: 14px;
 			position: absolute;
-			top: 0;
-			left: 0;
-			width: @tableauwidth;
-			height: 3 * @cardheight + 2 * @tableauspacing;
-			.protection-area {
-				&:extend(.well);
-				position: absolute;
-				left: 0;
-				top: 0;
-				width: 1.5 * @cardwidth;
-				height: @cardheight;
-			}
-			.sabotage-area {
-				&:extend(.well);
-				&:extend(.stack all);
-				position: absolute;
-				top: 0;
-				left: 1.5 * @cardwidth + @tableauspacing;
-				width: @cardwidth;
-				height: @cardheight;
-			}
-			.journey-area {
-				&:extend(.well);
-				position: absolute;
-				top: 0;
-				left: 2.5 * @cardwidth + 2 * @tableauspacing;
-				width: 7.5 * @cardwidth;
-				height: @cardheight;
-			}
-			.hand {
-				&:extend(.well);
-				position: absolute;
-				top: @cardheight + @tableauspacing;
-				left: 0;
-				width: 10 * @cardwidth + 2 * @tableauspacing;
-				height: @cardheight;
-			}
+			left: 10 * @cardwidth + 2 * @arenapadding;
+			height: @cardheight;
+			line-height: @cardheight;
+			width: @cardwidth;
+			text-align: center;
+			font-weight: bold;
 		}
-		
+		.sabotage-area {
+			&:extend(.well);
+			&:extend(.stack all);
+			position: absolute;
+			left: @arenapadding;
+			width: @cardwidth;
+			height: @cardheight;
+		}
+		.journey-area {
+			&:extend(.well);
+			position: absolute;
+			left: @cardwidth + @arenapadding;
+			width: 9 * @cardwidth;
+			height: @cardheight;
+		}
+		.hand {
+			&:extend(.well);
+			position: absolute;
+			left: @arenapadding;
+			width: 11 * @cardwidth + @arenapadding;
+			height: @cardheight;
+		}
 	}
 }
 
 #status {
+	position: absolute;
+	top: @arenaheight / 2 - 40px;
+	left: 0;
+	right: 0;
+	height: 80px;
+	font-size: 14px;
+	text-align: center;
+	width: @arenawidth;
+	line-height: 80px;
 	&.message {
-		position: absolute;
-		top: 140px;
-		left: 0;
-		right: 0;
-		color: white;
-		background: black;
-		padding: 10px;
+		z-index: 1000;
 		font-weight: bold;
 		font-size: 20px;
+		color: white;
+		background: black;
 	}
 }

@@ -112,7 +112,8 @@ const startRenderer = game => {
 		if (to.pile === 'discard') {
 			let moveToMiddle = from.pile === 'hand';
 			if (moveToMiddle) {
-				$card.style.transform = `translate(280px, 280px) scale(3)`;
+				$card.style.transform = `translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}px, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}px) scale(3)`;
+				console.log(`translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}) scale(3)`)
 				setTimeout(() => {
 					$card.classList.add('discarded');
 					setTimeout(() => $arena.removeChild($card), 1000);
@@ -126,7 +127,6 @@ const startRenderer = game => {
 		game.players.forEach(player => {
 			fanCards($(`#player${player.uid} .hand`), player.hand);
 			fanCards($(`#player${player.uid} .journey-area`), player.journey);
-			fanCards($(`#player${player.uid} .protection-area`), player.protection);
 			fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage);
 		});
 		await wait(100);
@@ -190,50 +190,6 @@ const getCoords = ($el) => {
 	};
 };
 
-const moveCardOld = ($card, $newArea, newX, newY, enlarge) => {
-	if ($card.parentElement === $newArea) { return; }
-	let $origin = $card.parentElement ? $card : $deck;
-	let { x, y } = $origin.getBoundingClientRect();
-	x -= $arena.getBoundingClientRect().x;
-	y -= $arena.getBoundingClientRect().y;
-	$card.style.transform = `translate(${x}px, ${y}px)`;
-	
-	setTimeout(() => { // wait so that animation will work
-		if ($newArea) {
-			let dimA = $arena.getBoundingClientRect(),
-				dimB = $newArea.getBoundingClientRect();
-			newX = -dimA.x + dimB.x;
-			newY = -dimA.y + dimB.y;
-		}
-		$card.style.transform = `translate(${newX}px, ${newY}px)` + (enlarge ? ` scale(2.6)` : '');
-	});
-	setTimeout(() => { // wait until animation ends
-		if ($newArea) {
-			$newArea.appendChild($card);
-			$card.style.transform = `none`;
-		}
-	}, 1000);
-};
-
-const burnCard = ($card, moveToMiddle) => {
-	console.log('-- discard', moveToMiddle)
-	if ($card.classList.contains('discarded')) { return; }
-	if (moveToMiddle) {
-		moveCard($card, null, 400, 400, true);
-		setTimeout(() => {
-			$card.classList.add('discarded');
-			setTimeout(() => {
-				$card.parentElement.removeChild($card);
-			}, 1000);
-		}, 1000);
-	} else {
-		$card.classList.add('discarded');
-		setTimeout(() => {
-			$card.parentElement.removeChild($card);
-		}, 1000);
-	}
-};
-
 const renderHelp = () => {
 	$('#dlg-help').style.display = 'block';
 	let $cards = $('#all-cards');
@@ -256,3 +212,15 @@ $('#help').addEventListener('click', () => {
 });
 
 $('#play').click();
+
+
+
+window.addEventListener('load', () => {
+	let arenaWidth = $arena.offsetWidth,
+		arenaHeight = $arena.offsetHeight,
+		ratio1 = window.innerWidth / arenaWidth,
+		ratio2 = window.innerHeight / arenaHeight,
+		ratio = Math.min(ratio1, ratio2);
+
+	$('#viewport').setAttribute('content', `initial-scale=${ratio}, maximum-scale=${ratio}, minimum-scale=${ratio}`);
+});

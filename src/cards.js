@@ -1,45 +1,4 @@
 module.exports = [
-	// PROTECTION
-	{
-		type: 'protection',
-		name: 'Spare Tire',
-		description: 'Play on your protection area to protect against Stingers.',
-		quote: '',
-		artwork: 'protection-puncture.jpg',
-		prevents: 'puncture',
-		remedies: 'puncture',
-		quantity: 1
-	},
-	{
-		type: 'protection',
-		name: 'Blues and Twos',
-		description: 'Play on your protection area to protect against Speed Limits.',
-		quote: '',
-		artwork: 'protection-speedlimit.jpg',
-		prevents: 'speedlimit',
-		remedies: 'speedlimit',
-		quantity: 1
-	},
-	{
-		type: 'protection',
-		name: 'Incognito',
-		description: 'Play on your protection area to protect against Pursuits.',
-		quote: 'Master of disguise',
-		artwork: 'protection-pursuit.jpg',
-		prevents: 'pursuit',
-		remedies: 'pursuit',
-		quantity: 1
-	},
-	{
-		type: 'protection',
-		name: 'Map',
-		description: 'Play on your protection area to protect against Detours.',
-		quote: '',
-		artwork: 'protection-detour.jpg',
-		prevents: 'detour',
-		quantity: 1
-	},
-
 	// SABOTAGE
 	{
 		type: 'sabotage',
@@ -47,7 +6,7 @@ module.exports = [
 		description: 'Play on an opponent’s sabotage pile to give them a puncture.',
 		quote: '‘This is crazy,’ I mumbled. She threw me that look. I lugged the damn Stinger out of the trunk set it across the street. They didn’t see it coming.',
 		artwork: 'sabotage-puncture.jpg',
-		causes: 'puncture',
+		effect: 'puncture',
 		quantity: 3
 	},
 	{
@@ -56,7 +15,7 @@ module.exports = [
 		description: 'Play on an opponent’s sabotage pile to stop them playing journey cards higher than 15.',
 		quote: 'I gave a beat cop 20 bucks to keep a look out.',
 		artwork: 'sabotage-speedlimit.jpg',
-		causes: 'speedlimit',
+		effect: 'speedlimit',
 		quantity: 3
 	},
 	{
@@ -65,7 +24,7 @@ module.exports = [
 		description: 'Play on an opponent’s sabotage pile to stop them playing journey cards lower then 75.',
 		quote: 'A buck here, a buck there, you make your name with the cops. I dialed 911 and hit call.',
 		artwork: 'sabotage-pursuit.jpg',
-		causes: 'pursuit',
+		effect: 'pursuit',
 		quantity: 3
 	},
 	{
@@ -74,7 +33,7 @@ module.exports = [
 		description: 'Discard this card and all of an opponent’s lowest distances.',
 		quote: 'Detour signs litter the junkyard. Useful. I chuck one up on the road. Someone will always follow the signs.',
 		artwork: 'sabotage-detour.jpg',
-		causes: 'detour',
+		effect: 'detour',
 		quantity: 3
 	},
 
@@ -111,31 +70,44 @@ module.exports = [
 	{
 		type: 'driver',
 		name: 'The Mechanic', // F
-		description: 'Play to your Journey area to travel {{distance}} miles, regardless of Stinger.',
+		description: 'Play to your Journey area to protect against Stinger.',
 		quote: 'Years doing jobs taught me a thing or two about mechanics. But this gal knew her way about a Plymouth. She was part of the car.',
 		artwork: 'driver-mechanic.jpg',
 		distance: 10,
-		ignores: 'puncture',
+		remedies: 'puncture',
+		prevents: 'puncture',
 		quantity: 3
 	},
 	{
 		type: 'driver',
 		name: 'The Brute', // M
-		description: 'Play to your Journey area to travel {{distance}} miles, regardless of Pursuit.',
+		description: 'Play to your Journey area to protect against Pursuit.',
 		quote: 'Life on the inside had taken its toll. He could barely murmur a word. But he was armed to the teeth. Nobody dared get close to us.',
 		artwork: 'driver-brute.jpg',
 		distance: 30,
-		ignores: 'pursuit',
+		remedies: 'pursuit',
+		prevents: 'pursuit',
 		quantity: 3
 	},
 	{
 		type: 'driver',
 		name: 'Mayor Ducane', // F
-		description: 'Play to your Journey area to travel {{distance}} miles, regardless of Speed Limit.',
+		description: 'Play to your Journey area to protect against Speed Limit.',
 		quote: 'The mayor’s an old friend. She swerves to avoid a crossing gal. ’Broads!’ I shouted. How was I supposed to know she had daughter. We didnt speak a word for 60 damn miles.',
 		artwork: 'driver-mayor.jpg',
 		distance: 50,
-		ignores: 'speedlimit',
+		remedies: 'speedlimit',
+		prevents: 'speedlimit',
+		quantity: 3
+	},
+	{
+		type: 'driver',
+		name: 'The Navigator',
+		description: 'Play on your Journey area to protect against Detours.',
+		quote: '',
+		distance: 30,
+		artwork: 'driver-navigator.jpg',
+		prevents: 'detour',
 		quantity: 3
 	},
 
@@ -147,8 +119,8 @@ module.exports = [
 		quote: 'She took a drag of a cigarette and handed me a cup of brown. Tasted of ash.',
 		artwork: 'driver-nurse.jpg',
 		distance: 0,
-		causes: 'revive',
-		quantity: 2
+		effect: 'revive',
+		quantity: 3
 	},
 	{
 		type: 'driver',
@@ -157,8 +129,8 @@ module.exports = [
 		quote: 'He was a grisly guy with a stench of fomaldehyde. An animal doctor. Hospital wasn’t an option, so this was the next best thing.',
 		artwork: 'driver-vet.jpg',
 		distance: 0,
-		causes: 'revive',
-		quantity: 2
+		effect: 'revive',
+		quantity: 3
 	},
 
 	// TURNCOATS
@@ -169,7 +141,7 @@ module.exports = [
 		quote: 'Damn you Rita. Broke my heart. I should have seen this coming. The way you talked about them.',
 		artwork: 'driver-rita.jpg',
 		distance: 0,
-		causes: 'turncoat',
+		effect: 'turncoat',
 		quantity: 1
 	},
 	{
@@ -178,7 +150,7 @@ module.exports = [
 		description: 'Play to an opponent’s Journey pile and draw two cards.',
 		quote: 'I never trusted Jenkins. Had her hat in too many rings. But desperate times... I gave her the keys.',
 		artwork: 'driver-jenkins.jpg',
-		causes: 'turncoat',
+		effect: 'turncoat',
 		distance: 20,
 		quantity: 3
 	},
@@ -189,7 +161,7 @@ module.exports = [
 		quote: 'Bill was the kind of bastard you never trust. He’d sell out his own mother for a fix. Hope to never see his gnarly mug again.',
 		artwork: 'driver-bill.jpg',
 		distance: 50,
-		causes: 'turncoat',
+		effect: 'turncoat',
 		quantity: 5
 	},
 
@@ -254,7 +226,7 @@ module.exports = [
 		quote: 'A muffled scream in the trunk. I said nothing. The Don, the big man, he’ll rip your teeth out and wear them as cufflinks.',
 		description: 'Play to your Journey area to travel {{distance}} miles.',
 		artwork: 'driver-don.jpg',
-		quantity: 3,
+		quantity: 2,
 		distance: 100
 	}
 ];

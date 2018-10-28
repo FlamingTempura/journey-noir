@@ -42,7 +42,6 @@ class Game {
 				type: i === 0 ? 'ai' : 'human',
 				hand: [],
 				journey: [],
-				protection: [],
 				sabotage: [],
 				tokens: 0
 			};
@@ -68,7 +67,7 @@ class Game {
 		if (pile === this.deck) { return { pile: 'deck' }; }
 		if (pile === this.discard) { return { pile: 'discard' }; }
 		for (let player of this.players) {
-			for (let p of ['hand', 'journey', 'sabotage', 'protection']) {
+			for (let p of ['hand', 'journey', 'sabotage']) {
 				if (pile === player[p]) {
 					return { pile: p, player };
 				}
@@ -186,7 +185,6 @@ class Game {
 					if (!card) {
 						await this._pass(player);
 					} else {
-						console.log(prospects);
 						if (!prospects.find(p => p[0] === card)) {
 							throw new Error('Cannot play this card');
 						}
@@ -214,12 +212,8 @@ class Game {
 		console.log('Played', card.name);
 		let opponent = this.players.find(p => p !== player);
 
-		if (card.type === 'protection') {
-			await this._moveCard(card, player.hand, player.protection);
-		}
-
 		if (card.type === 'sabotage') {
-			if (card.causes === 'detour') {
+			if (card.effect === 'detour') {
 				await this._moveCard(card, player.hand, this.discard);
 				let highest = Math.max(...this.players.map(p => {
 					return Math.max(...p.journey.map(j => j.distance));
@@ -241,19 +235,19 @@ class Game {
 		}
 
 		if (card.type === 'driver') {
-			if (card.causes === 'turncoat') {
+			if (card.effect === 'turncoat') {
 				await this._moveCard(card, player.hand, opponent.journey);
 				await this._moveCard(this.deck[0], this.deck, player.hand);
 				await this._moveCard(this.deck[0], this.deck, player.hand);
 			} else {
 				await this._moveCard(card, player.hand, player.journey);
 			}
-			if (card.causes === 'revive') {
+			if (card.effect === 'revive') {
 				await this._awaitRevive(player);
 			}
 		}
 
-		if (player.sabotage.length > 0 && card.remedies === topCard(player.sabotage).causes) {
+		if (player.sabotage.length > 0 && card.remedies === topCard(player.sabotage).effect) {
 			for (let sabotageCard of player.sabotage) {
 				this._moveCard(sabotageCard, player.sabotage, this.discard);
 			}
@@ -295,11 +289,8 @@ class Game {
 	// If a prospect is < 0, then it is an illegal play
 	_getProspect(player, card) {
 		let opponent = this.players.find(p => p !== player);
-		if (card.type === 'protection') {
-			return 1;
-		}
 		if (card.type === 'sabotage') {
-			if (opponent.protection.find(p => p.prevents === card.causes)) {
+			if (opponent.journey.find(p => p.prevents === card.effect)) {
 				console.log(`${card.name} cannot be played because player is protected`);
 				return -1; // cannot play a sabotage if opponent is protected
 			}
@@ -312,28 +303,22 @@ class Game {
 			return 0.2;
 		}
 		if (card.type === 'driver') {
-			let sabotage = topCard(card.causes === 'turncoat' ? opponent.sabotage : player.sabotage);
+			let sabotage = topCard(card.effect === 'turncoat' ? opponent.sabotage : player.sabotage);
 
-			if (sabotage.causes === 'puncture' && card.ignores !== 'puncture') {
+			if (sabotage.effect === 'puncture' && card.remedies !== 'puncture') {
 				console.log(`${card.name} (${card.distance}) cannot be played because player has a puncture`);
 				return -1;
 			}
 
-			if (sabotage.causes === 'speedlimit' && card.ignores !== 'speedlimit' && card.distance > 10) {
+			if (sabotage.effect === 'speedlimit' && card.remedies !== 'speedlimit' && card.distance > 10) {
 				console.log(`${card.name} (${card.distance}) cannot be played because player has a speed limit`);
 				return -1;
 			}
 
-			if (sabotage.causes === 'pursuit' && card.ignores !== 'pursuit' && card.distance < 75) {
+			if (sabotage.effect === 'pursuit' && card.remedies !== 'pursuit' && card.distance < 75) {
 				console.log(`${card.name} (${card.distance}) cannot be played because player has a pursuit`);
 				return -1;
 			}
-
-			/*if (sabotage.causes && card.ignores !== sabotage.sabotages) {
-				console.log(`${card.name} (${card.distance}) cannot be played because there is a puncture`);
-				return -1;
-			}*/
-
 			return 1; // TODO: higher cards are better
 		}
 	}
