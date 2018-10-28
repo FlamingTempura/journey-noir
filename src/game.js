@@ -15,6 +15,24 @@ const createDeck = () => {
 	return shuffle(deck);
 };
 
+// Sort by sabotage cards first, then remedy cards, then drivers in order of distance
+const orderCards = cards => {
+	console.log('order', cards);
+	cards.map(card => {
+			let index;
+			if (card.type === 'sabotage') {
+				index = `1-${card.effect}`;
+			} else if (card.type === 'remedy') {
+				index = `2-${card.remedies}`;
+			} else {
+				index = `3-${String(card.distance).padStart(5, '0')}`;
+			}
+			return [index, card];
+		})
+		.sort((a, b) => a[0] < b[0] ? -1 : 1)
+		.forEach((a, i) => cards.splice(i, 1, a[1]));
+};
+
 class Game {
 	constructor() {
 		this.listeners = {};
@@ -33,8 +51,10 @@ class Game {
 		await Promise.all(callbacks.map(cb => cb(...args)));
 	}
 	async start() {
+		this._emit('status', 'Dealing...');
 		this.deck = createDeck();
 		this.discard = [];
+		this.turn = -3; // not yet started
 		this.players = times(2, i => {
 			return {
 				uid: i,
@@ -54,6 +74,8 @@ class Game {
 				await this._moveCard(this.deck[0], this.deck, player.hand);
 			}
 		}
+
+		this.turn = -2; // redraw
 
 		for (let player of this.players) {
 			await this._awaitRedraw(player);
@@ -80,6 +102,10 @@ class Game {
 	async _moveCard(card, from, to) {
 		removeEl(from, card);
 		to.push(card);
+		let id = this._identifyPile(to);
+		if (id.pile === 'hand' || id.pile === 'journey') {
+			orderCards(to);
+		}
 		await this._emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
 	}
 
@@ -95,6 +121,7 @@ class Game {
 	async _awaitRedraw(player, redrawCount = 0) {
 		this._emit('status', 'Waiting for player to redraw a card...');
 		let redraw = async card => {
+			this._emit('status', 'Redrawing...');
 			if (card) {
 				if (!player.hand.includes(card)) {
 					throw new Error('Pick a card of your own to redraw, or click Skip Redraw');
@@ -108,7 +135,7 @@ class Game {
 		};
 		if (player.type === 'ai') {
 			await this._thinking(player, 800);
-			if (Math.random() > 0.0) { // TODO: make this more intelligent
+			if (Math.random() > 0.4) { // TODO: make this more intelligent
 				await redraw(pick(player.hand)); 
 			}
 		} else {
@@ -132,7 +159,15 @@ class Game {
 
 	async _startRound() {
 		this.turn = -1;
-		this.players.forEach(player => player.score = 0);
+		for (let player of this.players) {
+			player.passed = false;
+			player.score = 0;
+			for (let pile of [player.journey, player.sabotage]) {
+				for (let card of pile) {
+					await this._moveCard(card, pile, this.discard);
+				}
+			}
+		}
 		let player = pick(this.players);
 		this.startPlayer = this.players.indexOf(player); // TODO: set to winner of previous round 
 		await this._emit('start-round', player);
@@ -143,14 +178,13 @@ class Game {
 		let winner = this.players.reduce((a, b) => a.score > b.score ? a : b);
 		winner.tokens++;
 		let gameEnd = winner.tokens === 2;
-		await this._emit('end-round', (winner, gameEnd));
+		await this._emit('end-round', winner, gameEnd);
 		if (!gameEnd) {
 			this._startRound();
 		}
 	}
 
 	async _nextTurn() {
-		await wait(500);
 		this.turn++;
 
 		let playerIndex = (this.turn + this.startPlayer) % this.players.length,
@@ -158,39 +192,58 @@ class Game {
 
 		if (this.players.every(p => p.passed)) { // if all players have passed
 			this._endRound();
-		} else if (!player.passed) {
+		} else if (player.passed) {
+			this._nextTurn();
+		} else {
 			await this._emit('start-turn', player, this.turn);
 			await this._awaitPlay(player);
+			for (let player of this.players) {
+				player.score = player.journey.reduce((sum, card) => sum + card.distance, 0);
+			}
+			await this._emit('end-turn', player, this.turn);
+			console.log('--------------  Turn finished  --------------');
+			this._nextTurn();
 		}
-		for (let player of this.players) {
-			player.score = player.journey.reduce((sum, card) => sum + card.distance, 0);
-		}
-		this._nextTurn();
 	}
 
-	async _awaitPlay(player) {
-		this._emit('status', 'Waiting for player to play a card...');
-		let prospects = this._getProspects(player, player.hand);
+	async _awaitPlay(player, reviving) {
+		if (reviving) {
+			this._emit('status', 'Waiting for player to play a card from discard pile...');
+			this._emit('revive', player);
+		} else {
+			this._emit('status', 'Waiting for player to play a card from their hand...');
+		}
+		let pile = reviving ? this.discard : player.hand,
+			prospects = this._getProspects(player, pile);
 		if (player.type === 'ai') {
 			await this._thinking(player, 1800);
-			if (prospects.length > 0) {
-				await this._playCard(player, weightedPick(prospects)); // TODO: AI should intelligently pass
-			} else {
+			let choices = prospects
+				.filter(prospect => prospect.value > 0)
+				.map(prospect => [prospect.card, prospect.value]);
+			let skipChance = 0.5 - 0.4 * Math.log10(choices.length);
+			console.log('@@@', skipChance)
+			if (choices.length > 0 && Math.random() > skipChance) {
+				await this._playCard(player, pile, weightedPick(choices)); // TODO: AI should intelligently pass
+			} else if (!reviving) {
 				await this._pass(player);
 			}
-
 		} else {
 			await new Promise(resolve => {
 				this.resolvePlay = async card => {
-					if (!card) {
-						await this._pass(player);
-					} else {
-						if (!prospects.find(p => p[0] === card)) {
-							throw new Error('Cannot play this card');
+					if (card) {
+						let prospect = prospects.find(p => p.card === card);
+						if (!prospect) {
+							console.log('ignored, not player\'s own card');
+							return;
 						}
-						await this._playCard(player, card);
-						resolve();
+						if (prospect.value < 0) {
+							throw new Error(prospect.reason);
+						}
+						await this._playCard(player, pile, card);
+					} else if (!reviving) {
+						await this._pass(player);
 					}
+					resolve();
 					delete this.resolvePlay;
 				};
 			});
@@ -208,17 +261,18 @@ class Game {
 		await this._emit('pass', player);
 	}
 
-	async _playCard(player, card) {
-		console.log('Played', card.name);
+	async _playCard(player, from, card) {
+		this._emit('status', `${player.name} played ${card.name}...`);
 		let opponent = this.players.find(p => p !== player);
 
 		if (card.type === 'sabotage') {
 			if (card.effect === 'detour') {
-				await this._moveCard(card, player.hand, this.discard);
-				let highest = Math.max(...this.players.map(p => {
-					return Math.max(...p.journey.map(j => j.distance));
-				}));
-				this.players.forEach(p => {
+				await this._moveCard(card, from, this.discard);
+				let players = this.players.filter(p => !p.journey.find(j => j.prevents === 'detour'));
+				let highest = Math.max(...players.map(p => {
+						return Math.max(...p.journey.map(j => j.distance));
+					}));
+				players.forEach(p => {
 					p.journey.forEach(journeyCard => {
 						if (journeyCard.distance === highest) {
 							this._moveCard(journeyCard, p.journey, this.discard);
@@ -226,24 +280,24 @@ class Game {
 					});
 				});
 			} else {
-				await this._moveCard(card, player.hand, opponent.sabotage);
+				await this._moveCard(card, from, opponent.sabotage);
 			}
 		}
 
 		if (card.type === 'remedy') {
-			await this._moveCard(card, player.hand, this.discard);
+			await this._moveCard(card, from, this.discard);
 		}
 
 		if (card.type === 'driver') {
 			if (card.effect === 'turncoat') {
-				await this._moveCard(card, player.hand, opponent.journey);
+				await this._moveCard(card, from, opponent.journey);
 				await this._moveCard(this.deck[0], this.deck, player.hand);
 				await this._moveCard(this.deck[0], this.deck, player.hand);
 			} else {
-				await this._moveCard(card, player.hand, player.journey);
+				await this._moveCard(card, from, player.journey);
 			}
 			if (card.effect === 'revive') {
-				await this._awaitRevive(player);
+				await this._awaitPlay(player, true);
 			}
 		}
 
@@ -254,84 +308,48 @@ class Game {
 		}
 	}
 
-	async _awaitRevive(player) {
-		this._emit('status', 'Waiting for player to play a card...');
-		let prospects = this._getProspects(player, this.discard);
-		if (player.type === 'ai') {
-			await this._thinking(player, 1800);
-			if (prospects.length > 0) {
-				await this._playCard(player, weightedPick(prospects));
-			}
-		} else {
-			await new Promise(resolve => {
-				this.resolveRevive = async card => {
-					if (card) {
-						if (!prospects.find(p => p[0] === card)) {
-							throw new Error('Cannot play this card.');
-						}
-						await this._playCard(player, card);
-						resolve();
-					}
-					delete this.resolveRevive;
-				};
-			});
-		}
-	}
-
-	revive(card) {
-		if (this.resolveRevive) {
-			this.resolveRevive(card);
-		}
-	}
-
 	// For each card in a players hand, rank them by best to play:
 	// If a prospect is > 0, then it is a legal play, and higher numbers are better cards to play.
 	// If a prospect is < 0, then it is an illegal play
 	_getProspect(player, card) {
 		let opponent = this.players.find(p => p !== player);
 		if (card.type === 'sabotage') {
-			if (opponent.journey.find(p => p.prevents === card.effect)) {
-				console.log(`${card.name} cannot be played because player is protected`);
-				return -1; // cannot play a sabotage if opponent is protected
+			if (card.effect !== 'detour' && opponent.journey.find(p => p.prevents === card.effect)) {
+				return [-1, `${card.name} cannot be played because ${opponent.name} is protected`];
 			}
-			return 1;
+			return [1];
 		}
 		if (card.type === 'remedy') {
 			if (topCard(player.sabotage).sabotages === card.remedies) {
-				return 1;
+				return [1];
 			}
-			return 0.2;
+			return [0.2];
 		}
 		if (card.type === 'driver') {
-			let sabotage = topCard(card.effect === 'turncoat' ? opponent.sabotage : player.sabotage);
+			let target = card.effect === 'turncoat' ? opponent : player,
+				sabotage = topCard(target.sabotage);
 
 			if (sabotage.effect === 'puncture' && card.remedies !== 'puncture') {
-				console.log(`${card.name} (${card.distance}) cannot be played because player has a puncture`);
-				return -1;
+				console.log();
+				return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a puncture`];
 			}
 
 			if (sabotage.effect === 'speedlimit' && card.remedies !== 'speedlimit' && card.distance > 10) {
-				console.log(`${card.name} (${card.distance}) cannot be played because player has a speed limit`);
-				return -1;
+				return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a speed limit`];
 			}
 
 			if (sabotage.effect === 'pursuit' && card.remedies !== 'pursuit' && card.distance < 75) {
-				console.log(`${card.name} (${card.distance}) cannot be played because player has a pursuit`);
-				return -1;
+				return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a pursuit`];
 			}
-			return 1; // TODO: higher cards are better
+			return [1]; // TODO: higher cards are better
 		}
 	}
 
 	_getProspects(player, cards) {
-		let prospects = [];
-		cards.forEach(card => {
+		return cards.map(card => {
 			let prospect = this._getProspect(player, card);
-			if (prospect > 0) {
-				prospects.push([card, prospect]);
-			}
+			return { card, value: prospect[0], reason: prospect[1] };
 		});
-		return prospects;
 	}
 }
 

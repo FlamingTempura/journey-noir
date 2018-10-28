@@ -1,6 +1,6 @@
 'use strict';
 
-import { $, $copy, wait } from './utils';
+import { $, $copy, wait, last } from './utils';
 import { newGame } from './game';
 import CARDS from './cards';
 
@@ -12,7 +12,7 @@ const $arena = $('#arena');
 const message = async str => {
 	$status.textContent = str;
 	$status.classList.add('message');
-	await wait(1000);
+	await wait(1600);
 	$status.classList.remove('message');
 };
 
@@ -34,7 +34,7 @@ const startRenderer = game => {
 	game.on('redraw', async redrawCount => {
 		await message(`Pick a card to redraw (${redrawCount + 1}/2)`);
 		//enlargeHand();
-		$('#skipredraw').style.display = 'block';
+		$('#skipredraw').style.display = 'inline-block';
 		resolvePickCard = card => {
 			try {
 				game.redraw(card);
@@ -48,6 +48,9 @@ const startRenderer = game => {
 	});
 
 	game.on('start-round', async startPlayer => {
+		game.players.forEach(player => {
+			$(`#player${player.uid} .score`).textContent = `0 miles`;
+		});
 		await message('Round start');
 		if (startPlayer.type === 'human') {
 			await message('You will go first');
@@ -57,13 +60,13 @@ const startRenderer = game => {
 	});
 
 	game.on('start-turn', async (activePlayer) => {
+		await wait(400);
 		game.players.forEach(player => {
-			$(`#player${player.uid} .score`).textContent = `${player.score} miles`;
 			$(`#player${player.uid}`).classList.toggle('active', player === activePlayer);
 		});
 		if (activePlayer.type === 'human') {
 			await message('Your turn');
-			$('#pass').style.display = 'block';
+			$('#pass').style.display = 'inline-block';
 			resolvePickCard = async card => {
 				try {
 					console.log('trying to play', card);
@@ -86,26 +89,30 @@ const startRenderer = game => {
 		}
 	});
 
-	game.on('revive', async () => {
-		await message('Pick a card to immediately play');
-		//enlargeDiscard();
-		resolvePickCard = card => {
-			if (game.revive(card)) {
-				//shrinkDiscard()
-			}
-		};
+	game.on('revive', async player => {
+		if (player.type === 'human') {
+			$('#discard').classList.add('expand');
+			setTimeout(() => fanCards($('#discard'), game.discard), 500);
+			await message('Pick a card to immediately play');
+			resolvePickCard = card => {
+				if (game.play(card)) {
+					$('#discard').classList.remove('expand');
+					setTimeout(() => fanCards($('#discard'), game.discard, true), 500);
+				}
+			};
+		}
 	});
 
-	game.on('end-round', (winner, gameEnd) => {
+	game.on('end-round', async (winner, gameEnd) => {
 		game.players.forEach(player => {
 			$(`#player${player.uid} .tokens`).textContent = `${player.tokens} tokens`;
 			$(`#player${player.uid}`).classList.remove('active');
 		});
-		message(`${winner.type === 'human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
+		await message(`${winner.type === 'human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
 	});
 
 
-	let zIndex = 40;
+	let zIndex = 140;
 	game.on('card-moved', async (card, from, to) => {
 		let $card = renderCard(card);
 		$card.style.zIndex = zIndex++;
@@ -113,23 +120,42 @@ const startRenderer = game => {
 			let moveToMiddle = from.pile === 'hand';
 			if (moveToMiddle) {
 				$card.style.transform = `translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}px, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}px) scale(3)`;
-				console.log(`translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}) scale(3)`)
-				setTimeout(() => {
-					$card.classList.add('discarded');
-					setTimeout(() => $arena.removeChild($card), 1000);
-				}, 1000);
+				setTimeout(() => $card.classList.add('discarding'), 1000);
 			} else {
-				$card.classList.add('discarded');
-				setTimeout(() => $arena.removeChild($card), 1000);
+				$card.classList.add('discarding');
 			}
+			wait(1800).then(() => {
+				fanCards($('#discard'), game.discard, true);
+				$card.classList.add('discarded');
+				setTimeout(() => {
+					$card.classList.remove('discarding');
+				});
+			});
+			await wait(400);
 		}
 		
 		game.players.forEach(player => {
 			fanCards($(`#player${player.uid} .hand`), player.hand);
 			fanCards($(`#player${player.uid} .journey-area`), player.journey);
-			fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage);
+			fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage, true);
+			let sabotaged = last(player.sabotage);
+			$(`#player${player.uid}`).classList.toggle('sabotaged', !!sabotaged);
+			if (sabotaged) {
+				$(`#player${player.uid} .sabotage-status .icon`).src = `icons/${sabotaged.effect}.svg`;
+			}
 		});
-		await wait(100);
+		if (game.turn === -3) { // dealing cards
+			await wait(100);
+		} else {
+			await wait(1200);
+		}
+	});
+
+
+	game.on('end-turn', () => {
+		game.players.forEach(player => {
+			$(`#player${player.uid} .score`).textContent = `${player.score || 0} miles`;
+		});
 	});
 
 	game.on('status', msg => $status.textContent = msg);
@@ -145,7 +171,7 @@ const startRenderer = game => {
 		}
 	});
 
-	const fanCards = ($pile, cards) => { // spread cards as a fan
+	const fanCards = ($pile, cards, cascade) => { // spread cards as a fan
 		let cardWidth = $('.card').offsetWidth,
 			coords = getCoords($pile),
 			width = Math.min(cardWidth * cards.length, $pile.offsetWidth),
@@ -157,7 +183,13 @@ const startRenderer = game => {
 		}
 
 		cards.forEach((card, i) => {
-			renderCard(card).style.transform = `translate(${x + i * offset}px, ${coords.y}px)`;
+			let cx = x + i * offset,
+				cy = coords.y;
+			if (cascade) {
+				cx = coords.x + 2 * Math.min(5, i);
+				cy = coords.y + Math.min(5, i);
+			}
+			renderCard(card).style.transform = `translate(${cx}px, ${cy}px)`;
 		});
 	};
 
@@ -212,8 +244,6 @@ $('#help').addEventListener('click', () => {
 });
 
 $('#play').click();
-
-
 
 window.addEventListener('load', () => {
 	let arenaWidth = $arena.offsetWidth,

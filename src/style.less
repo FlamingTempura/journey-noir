@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css?family=Oswald:300,400,500,600');
+
+
 @red: #ff5252;
 @green: #33d9b2;
 @orange: #ff793f;
@@ -8,7 +11,7 @@
 @arenawidth: 800px;
 @arenaheight: 500px;
 
-@arenapadding: 2px;
+@arenapadding: 5px;
 @playerspacing: 0;
 
 @cardratio: 357 / 420;
@@ -22,9 +25,14 @@
 
 body {
 	margin: 0;
-	font-family: sans-serif;
+	font-family: 'Oswald', sans-serif;
+	font-weight: 300;
 	background: url("/assets/felt.jpg") center top;
 	overflow: hidden;
+}
+
+button {
+	font-family: 'Oswald', sans-serif;
 }
 
 .vignette {
@@ -52,10 +60,10 @@ body {
 
 #toolbar {
 	position: absolute;
-	bottom: 0;
-	right: 0;
+	top: @arenaheight / 2 + 23px;
+	left: @arenawidth / 2 - 50px;
 	width: 100px;
-	text-align: right;
+	text-align: center;
 	button {
 		background: white;
 		color: #333;
@@ -65,7 +73,7 @@ body {
 		border: none;
 		border-radius: 3px;
 		padding: 5px 8px;
-		box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+		box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.3);
 		display: none;
 	}
 }
@@ -101,28 +109,23 @@ body {
 	width: @cardwidth;
 	height: @cardheight;
 	display: inline-block;
-	padding: 2px;
-	transition: opacity 0.3s ease 0.2s,
+	padding: 4px;
+	transition: opacity 0.3s ease-in 0.2s,
 				transform 0.8s ease 0s;
 	opacity: 1;
 	z-index: 30;
 	cursor: pointer;
 	img {
-		width: 100%;
-		box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+		box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5),
+					-0.5px -0.5px 0px rgba(255, 255, 255, 0.3);
+		border-radius: 4px;
 		transform: scale(1.0);
 		transition: transform 0.3s ease;
-		/*&:hover {
-			transform: scale(1.8);
-		}*/
-	}
-	.discard {
 		position: absolute;
-		bottom: 10px;
-		left: 10px;
-		right: 10px;
-		display: none;
-		z-index: 10;
+		top: 2px;
+		left: 2px;
+		width: @cardwidth - 4px;
+		height: @cardheight - 4px;
 	}
 	&:hover {
 		z-index: 40;
@@ -133,25 +136,32 @@ body {
 		bottom: 2px;
 		right: 2px;
 		left: 2px;
-		background: black;
-		border-radius: 1px;
+		background: rgba(0, 0, 0, 0.1);
+		border-radius: 4px;
 		opacity: 0;
 		transition: opacity 0.3s ease-in;
 		z-index: 4;
 	}
-	&.discarded {
-		.discard { display: none; }
+	&.discarding {
 		.burn {
 			opacity: 1;
 		}
 		opacity: 0;
 	}
+	&.discarded {
+		.burn {
+			transition: opacity 0.3s ease-out;
+			opacity: 0;
+		}
+		opacity: 1;
+		transition: opacity 0.3s ease-out;
+	}
 }
 
 .well {
-	box-shadow: inset 1px 1px 3px 1px rgba(0, 0, 0, 0.6);
-	border: 1px solid rgba(255, 255, 255, 0.25);
-	background: rgba(0, 0, 0, 0.17);
+	box-shadow: inset 1px 1px 3px 1px rgba(0, 0, 0, 0.1);
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	background: rgba(0, 0, 0, 0.27);
 	border-radius: 5px;
 	font-size: 11px;
 	color: rgba(255, 255, 255, 0.3);
@@ -172,7 +182,7 @@ body {
 		.cards(@n, @i: 0) when (@i =< @n) {
 			&:nth-child(@{i}) {
 				left: @i * 2px;
-				top: @i * 2px;
+				top: @i * 1px;
 				z-index: @i + 100;
 			}
 			.cards(@n, (@i + 1));
@@ -185,9 +195,36 @@ body {
 	&:extend(.stack all);
 	position: absolute;
 	top: @arenaheight / 2 - @cardheight / 2;
-	left: 9 * @cardwidth + 2 * @arenapadding;
+	left: 9.8 * @cardwidth;
 	width: @cardwidth;
 	height: @cardheight;
+}
+#discard {
+	&:extend(.well);
+	position: absolute;
+	top: @arenaheight / 2 - @cardheight / 2;
+	left: 8.2 * @cardwidth;
+	width: @cardwidth;
+	height: @cardheight;
+	transition: left 0.5s ease,
+	            width 0.5s ease;
+	.icon {
+		height: 20px;
+		top: @cardheight / 2 - 10px;
+		left: @cardwidth - 2px;
+	}
+	&.expand {
+		left: @arenapadding;
+		width: 8.2 * @cardwidth + @cardwidth;
+		.icon {
+			left: 8.2 * @cardwidth + @cardwidth - 2px;
+		}
+	}
+}
+
+.icon {
+	position: absolute;
+	opacity: 0.4;
 }
 
 #players {
@@ -210,7 +247,10 @@ body {
 			.hand {
 				top: @arenapadding;
 			}
-			.sabotage-area, .journey-area, .score {
+			.sabotage-area,
+			.journey-area,
+			.score,
+			.sabotage-status {
 				top: @cardheight + 2 * @arenapadding;
 			}
 		}
@@ -222,7 +262,10 @@ body {
 			.hand {
 				bottom: @arenapadding;
 			}
-			.sabotage-area, .journey-area, .score {
+			.sabotage-area,
+			.journey-area,
+			.score,
+			.sabotage-status {
 				bottom: @cardheight + 2 * @arenapadding;
 			}
 		}
@@ -252,25 +295,73 @@ body {
 		}
 		.sabotage-area {
 			&:extend(.well);
-			&:extend(.stack all);
 			position: absolute;
 			left: @arenapadding;
 			width: @cardwidth;
 			height: @cardheight;
+			.icon {
+				height: 30px;
+				top: @cardheight / 2 - 15px;
+				left: @cardwidth / 2 - 15px;
+				/*filter: invert(1);*/
+			}
+		}
+		.sabotage-status {
+			&:extend(.well);
+			position: absolute;
+			left: @cardwidth + 2 * @arenapadding;
+			width: 9 * @cardwidth;
+			height: @cardheight;
+			background: fade(#c60b0b, 10%);
+			z-index: 10000;
+			opacity: 0;
+			transition: opacity 0.4s ease-in;
+			.icon-circle {
+				background: white;
+				box-shadow: 0 0 5px 2px fade(#c60b0b, 100%);
+				border-radius: 50%;
+				width: 40px;
+				height: 40px;
+				position: absolute;
+				top: @cardheight / 2 - 20px;
+				left: -20px;
+				.icon {
+					position: absolute;
+					left: 15%;
+					top: 15%;
+					width: 70%;
+					opacity: 1;
+				}
+			}
+		}
+		&.sabotaged {
+			.sabotage-status {
+				opacity: 1;
+			}
 		}
 		.journey-area {
 			&:extend(.well);
 			position: absolute;
-			left: @cardwidth + @arenapadding;
+			left: @cardwidth + 2 * @arenapadding;
 			width: 9 * @cardwidth;
 			height: @cardheight;
+			.icon {
+				height: 60px;
+				top: @cardheight / 2 - 30px;
+				left: 4.5 * @cardwidth - 30px;
+				/*filter: invert(1);*/
+			}
 		}
 		.hand {
-			&:extend(.well);
+			/*&:extend(.well);*/
 			position: absolute;
 			left: @arenapadding;
 			width: 11 * @cardwidth + @arenapadding;
 			height: @cardheight;
+			/*box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.22),
+			            -1px -1px 1px rgba(255, 255, 255, 0.22);*/
+			background: rgba(255, 255, 255, 0.04);
+			border-radius: 6px;
 		}
 	}
 }
@@ -278,18 +369,19 @@ body {
 #status {
 	position: absolute;
 	top: @arenaheight / 2 - 40px;
-	left: 0;
-	right: 0;
+	left: 40px;
+	right: 40px;
 	height: 80px;
 	font-size: 14px;
 	text-align: center;
-	width: @arenawidth;
 	line-height: 80px;
+	border-radius: 5px;
 	&.message {
 		z-index: 1000;
 		font-weight: bold;
 		font-size: 20px;
-		color: white;
-		background: black;
+		color: #333;
+		background: white;
+		box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.4);
 	}
 }

@@ -42,15 +42,16 @@
 			<div class="card"><img src="assets/back.png"></div>
 			<div class="card"><img src="assets/back.png"></div>
 			<div class="card"><img src="assets/back.png"></div>
-			<div class="card"><img src="assets/back.png"></div>
-			<div class="card"><img src="assets/back.png"></div>
 			<div class="count"></div>
 		</div>
+		<div id="discard">
+			<img class="icon" src="assets/discard.svg">
+		</div>
+		
 		<div id="status"></div>
 		<div id="toolbar">
 			<button id="pass">Pass</button>
-			<button id="skipredraw">Skip redraw</button>
-			<button id="cancel">Cancel</button>
+			<button id="skipredraw">Skip</button>
 		</div>
 	</div>
 
@@ -64,16 +65,24 @@
 				<div class="tokens">0 tokens</div>
 			</div>
 			<div class="score">0 miles</div>
-			<div class="sabotage-area">Sabotage</div>
-			<div class="journey-area">Journey</div>
-			<div class="hand">Hand</div>
+			<div class="sabotage-area">
+				<img class="icon" src="assets/sabotage.svg">
+			</div>
+			<div class="journey-area">
+				<img class="icon" src="assets/journey.svg">
+			</div>
+			<div class="sabotage-status">
+				<div class="icon-circle">
+					<img class="icon" src="assets/sabotage.svg">
+				</div>
+			</div>
+			<div class="hand"></div>
 		</div>
 	</template>
 
 	<template id="tmpl-card">
 		<div class="card">
 			<img>
-			<button class="discard">Discard</button>
 			<div class="burn"></div>
 		</div>
 	</template>
