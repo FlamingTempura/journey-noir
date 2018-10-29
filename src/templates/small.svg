@@ -63,15 +63,21 @@
 			stroke-width: 9px;
 		}
 		</style>
-		<rect id="background"
+		<rect id="cliprect"
+		x="0" y="0"
+		width="100%" height="100%" 
+		ry="15" />
+		<clipPath id="clip">
+			<use xlink:href="#cliprect"/>
+		</clipPath>
+	</defs>
+
+
+	<rect id="background"
 		x="0" y="0"
 		width="100%" height="100%" 
 		x-fill="color"
 		ry="15" />
-		<clipPath id="clip">
-			<use xlink:href="#background"/>
-		</clipPath>
-	</defs>
 
 	<image id="artwork"
 		x="-99" y="0"

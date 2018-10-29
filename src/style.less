@@ -127,6 +127,18 @@ button {
 		width: @cardwidth - 4px;
 		height: @cardheight - 4px;
 	}
+	.front {
+		z-index: 1;
+	}
+	.back {
+		display: none;
+		z-index: 2;
+	}
+	&.facedown {
+		.back {
+			display: block;
+		}
+	}
 	&:hover {
 		z-index: 40;
 	}

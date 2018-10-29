@@ -1,0 +1,399 @@
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 300;
+  src: local('Oswald Light'), local('Oswald-Light'), url(https://fonts.gstatic.com/s/oswald/v16/TK3hWkUHHAIjg75-sh0Tus9H.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Oswald Regular'), local('Oswald-Regular'), url(https://fonts.gstatic.com/s/oswald/v16/TK3iWkUHHAIjg752GT8D.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 500;
+  src: local('Oswald Medium'), local('Oswald-Medium'), url(https://fonts.gstatic.com/s/oswald/v16/TK3hWkUHHAIjg75-6hwTus9H.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Oswald';
+  font-style: normal;
+  font-weight: 600;
+  src: local('Oswald SemiBold'), local('Oswald-SemiBold'), url(https://fonts.gstatic.com/s/oswald/v16/TK3hWkUHHAIjg75-xhsTus9H.ttf) format('truetype');
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font-family: 'Oswald', sans-serif;
+  font-weight: 300;
+  background: url("/assets/felt.jpg") center top;
+  overflow: hidden;
+}
+button {
+  font-family: 'Oswald', sans-serif;
+}
+.vignette {
+  background: transparent radial-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.5));
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+}
+#arena {
+  width: 800px;
+  height: 500px;
+  margin: 0 auto;
+  overflow: hidden;
+  position: relative;
+  color: white;
+}
+#arena > .card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 200;
+}
+#toolbar {
+  position: absolute;
+  top: 273px;
+  left: 350px;
+  width: 100px;
+  text-align: center;
+}
+#toolbar button {
+  background: white;
+  color: #333;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 12px;
+  border: none;
+  border-radius: 3px;
+  padding: 5px 8px;
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.3);
+  display: none;
+}
+.dlg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+.dlg-content {
+  margin: 30px auto;
+  background: white;
+  border-radius: 10px;
+  width: 400px;
+  padding: 18px;
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+#dlg-help {
+  display: none;
+}
+.card {
+  position: relative;
+  width: 71.36363636px;
+  height: 83.95721925px;
+  display: inline-block;
+  padding: 4px;
+  transition: opacity 0.3s ease-in 0.2s, transform 0.8s ease 0s;
+  opacity: 1;
+  z-index: 30;
+  cursor: pointer;
+}
+.card img {
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -0.5px -0.5px 0px rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  transform: scale(1);
+  transition: transform 0.3s ease;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 67.36363636px;
+  height: 79.95721925px;
+}
+.card .front {
+  z-index: 1;
+}
+.card .back {
+  display: none;
+  z-index: 2;
+}
+.card.facedown .back {
+  display: block;
+}
+.card:hover {
+  z-index: 40;
+}
+.card .burn {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  right: 2px;
+  left: 2px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+  z-index: 4;
+}
+.card.discarding {
+  opacity: 0;
+}
+.card.discarding .burn {
+  opacity: 1;
+}
+.card.discarded {
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+}
+.card.discarded .burn {
+  transition: opacity 0.3s ease-out;
+  opacity: 0;
+}
+.well,
+#deck,
+#discard,
+#players .player .sabotage-area,
+#players .player .sabotage-status,
+#players .player .journey-area {
+  box-shadow: inset 1px 1px 3px 1px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.27);
+  border-radius: 5px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.3);
+  text-align: center;
+  line-height: 83.95721925px;
+}
+.stack .card,
+#deck .card {
+  position: absolute;
+  border-radius: 3px;
+  overflow: hidden;
+  padding: 0;
+  box-shadow: -1px -1px 1px rgba(255, 255, 255, 0.4);
+  top: 10px;
+  left: 10px;
+}
+.stack .card:nth-child(0),
+#deck .card:nth-child(0) {
+  left: 0px;
+  top: 0px;
+  z-index: 100;
+}
+.stack .card:nth-child(1),
+#deck .card:nth-child(1) {
+  left: 2px;
+  top: 1px;
+  z-index: 101;
+}
+.stack .card:nth-child(2),
+#deck .card:nth-child(2) {
+  left: 4px;
+  top: 2px;
+  z-index: 102;
+}
+.stack .card:nth-child(3),
+#deck .card:nth-child(3) {
+  left: 6px;
+  top: 3px;
+  z-index: 103;
+}
+.stack .card:nth-child(4),
+#deck .card:nth-child(4) {
+  left: 8px;
+  top: 4px;
+  z-index: 104;
+}
+.stack .card:nth-child(5),
+#deck .card:nth-child(5) {
+  left: 10px;
+  top: 5px;
+  z-index: 105;
+}
+#deck {
+  position: absolute;
+  top: 208.02139037px;
+  left: 699.36363636px;
+  width: 71.36363636px;
+  height: 83.95721925px;
+}
+#discard {
+  position: absolute;
+  top: 208.02139037px;
+  left: 585.18181818px;
+  width: 71.36363636px;
+  height: 83.95721925px;
+  transition: left 0.5s ease, width 0.5s ease;
+}
+#discard .icon {
+  height: 20px;
+  top: 31.97860963px;
+  left: 69.36363636px;
+}
+#discard.expand {
+  left: 5px;
+  width: 656.54545455px;
+}
+#discard.expand .icon {
+  left: 654.54545455px;
+}
+.icon {
+  position: absolute;
+  opacity: 0.4;
+}
+#players .player {
+  position: absolute;
+  left: 0;
+  height: 250px;
+  width: 100%;
+}
+#players .player.active .playername {
+  color: red;
+  font-size: 20px;
+}
+#players .player:nth-child(1) {
+  top: 0;
+}
+#players .player:nth-child(1) .playerinfo {
+  bottom: 10px;
+}
+#players .player:nth-child(1) .hand {
+  top: 5px;
+}
+#players .player:nth-child(1) .sabotage-area,
+#players .player:nth-child(1) .journey-area,
+#players .player:nth-child(1) .score,
+#players .player:nth-child(1) .sabotage-status {
+  top: 93.95721925px;
+}
+#players .player:nth-child(2) {
+  top: 250px;
+}
+#players .player:nth-child(2) .playerinfo {
+  top: 10px;
+}
+#players .player:nth-child(2) .hand {
+  bottom: 5px;
+}
+#players .player:nth-child(2) .sabotage-area,
+#players .player:nth-child(2) .journey-area,
+#players .player:nth-child(2) .score,
+#players .player:nth-child(2) .sabotage-status {
+  bottom: 93.95721925px;
+}
+#players .player .playerinfo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 10px;
+  line-height: 1.2em;
+}
+#players .player .playerinfo .playername {
+  font-weight: bold;
+  font-size: 14px;
+}
+#players .player .playerinfo .tokens {
+  font-size: 10px;
+}
+#players .player .score {
+  font-size: 14px;
+  position: absolute;
+  left: 723.63636364px;
+  height: 83.95721925px;
+  line-height: 83.95721925px;
+  width: 71.36363636px;
+  text-align: center;
+  font-weight: bold;
+}
+#players .player .sabotage-area {
+  position: absolute;
+  left: 5px;
+  width: 71.36363636px;
+  height: 83.95721925px;
+}
+#players .player .sabotage-area .icon {
+  height: 30px;
+  top: 26.97860963px;
+  left: 20.68181818px;
+  /*filter: invert(1);*/
+}
+#players .player .sabotage-status {
+  position: absolute;
+  left: 81.36363636px;
+  width: 642.27272727px;
+  height: 83.95721925px;
+  background: rgba(198, 11, 11, 0.1);
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.4s ease-in;
+}
+#players .player .sabotage-status .icon-circle {
+  background: white;
+  box-shadow: 0 0 5px 2px #c60b0b;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  position: absolute;
+  top: 21.97860963px;
+  left: -20px;
+}
+#players .player .sabotage-status .icon-circle .icon {
+  position: absolute;
+  left: 15%;
+  top: 15%;
+  width: 70%;
+  opacity: 1;
+}
+#players .player.sabotaged .sabotage-status {
+  opacity: 1;
+}
+#players .player .journey-area {
+  position: absolute;
+  left: 81.36363636px;
+  width: 642.27272727px;
+  height: 83.95721925px;
+}
+#players .player .journey-area .icon {
+  height: 60px;
+  top: 11.97860963px;
+  left: 291.13636364px;
+  /*filter: invert(1);*/
+}
+#players .player .hand {
+  /*&:extend(.well);*/
+  position: absolute;
+  left: 5px;
+  width: 790px;
+  height: 83.95721925px;
+  /*box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.22),
+			            -1px -1px 1px rgba(255, 255, 255, 0.22);*/
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+}
+#status {
+  position: absolute;
+  top: 210px;
+  left: 40px;
+  right: 40px;
+  height: 80px;
+  font-size: 14px;
+  text-align: center;
+  line-height: 80px;
+  border-radius: 5px;
+}
+#status.message {
+  z-index: 1000;
+  font-weight: bold;
+  font-size: 20px;
+  color: #333;
+  background: white;
+  box-shadow: 2px 3px 5px rgba(0, 0, 0, 0.4);
+}

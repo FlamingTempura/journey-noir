@@ -10,27 +10,10 @@ const commonjs = require('rollup-plugin-commonjs');
 const CARDS = require('./src/cards.js');
 const phantom = require('phantom');
 
-const copyDir = async (src, dest) => {
-	let files = await fs.readdir(src);
-	try {
-		await fs.mkdir(dest);
-	} catch (e) {}
-	for (let file of files) {
-		await fs.copyFile(path.join(src, file), path.join(dest, file));
-	}
-};
-
 const styles = async () => {
 	let data = await fs.readFile('src/style.less', 'utf8'),
 		output = await less.render(data);
-	await fs.writeFile('build/style.css', output.css, 'utf8');
-};
-
-const assets = async () => {
-	await fs.copyFile('src/index.html', 'build/index.html');
-	await copyDir('src/assets', 'build/assets');
-	await copyDir('src/icons', 'build/icons');
-	await copyDir('src/fonts', 'build/fonts');
+	await fs.writeFile('style.css', output.css, 'utf8');
 };
 
 const scripts = async () => {
@@ -45,7 +28,7 @@ const scripts = async () => {
 		name: 'blah',
 		format: 'iife',
 		sourcemap: true,
-		file: 'build/bundle.js'
+		file: 'bundle.js'
 	});
 };
 
@@ -69,7 +52,7 @@ const svgSize = svg => {
 const colors = {
 	sabotage: '#b33939',
 	remedy: '#218c74',
-	driver: '#1e272e',
+	driver: '#000',//'#1e272e',
 	protection: '#ffb142'
 };
 
@@ -84,7 +67,7 @@ const cards = async () => {
 				color: colors[card.type],
 				ringColor: card.prevents ? '#ffb142' : colors[card.type],
 				distance: card.hasOwnProperty('distance') ? card.distance : '',
-				icon: icon && await fs.readFile(`./src/icons/${icon}.svg`, 'utf8'),
+				icon: icon && await fs.readFile(`./icons/${icon}.svg`, 'utf8'),
 				showIcon1: card.type !== 'driver' && icon ? 1 : 0,
 				showIcon2: card.type === 'driver' && icon ? 1 : 0,
 				crossIcon1: card.type !== 'driver' && (card.remedies || card.prevents) ? 1 : 0,
@@ -101,8 +84,8 @@ const cards = async () => {
 					.replace(/href="[^"]*\.jpg"/, `href="./artwork/${card.artwork}"`);
 			});
 		promises.push(
-			svg2png(large, `./build/cards/${CARDS.indexOf(card)}.png`, svgSize(templateLarge)),
-			svg2png(small, `./build/cards/${CARDS.indexOf(card)}-sm.png`, svgSize(templateSmall))
+			svg2png(large, `./cards/${CARDS.indexOf(card)}.png`, svgSize(templateLarge)),
+			svg2png(small, `./cards/${CARDS.indexOf(card)}-sm.png`, svgSize(templateSmall))
 		);
 	}
 	await Promise.all(promises);
@@ -121,13 +104,9 @@ const watch = (id, patterns, callback) => {
 };
 
 const build = async () => {
-	try {
-		await fs.mkdir('build');
-	} catch (e) {}
 	await Promise.all([
-		watch('cards', ['src/cards.js', 'src/icons/**/*', 'src/artwork/**/*'], cards),
+		watch('cards', ['src/cards.js', 'icons/**/*', 'artwork/**/*'], cards),
 		watch('styles', ['src/**/*.less'], styles),
-		watch('assets', ['src/index.html', 'src/assets/**/*', 'src/icons/**/*', 'src/fonts/**/*'], assets),
 		watch('scripts', ['src/**/*.js'], scripts)
 	]);
 	console.log('Success. Waiting for changes...');

@@ -120,6 +120,7 @@ const startRenderer = game => {
 			let moveToMiddle = from.pile === 'hand';
 			if (moveToMiddle) {
 				$card.style.transform = `translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}px, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}px) scale(3)`;
+				$card.classList.remove('facedown');
 				setTimeout(() => $card.classList.add('discarding'), 1000);
 			} else {
 				$card.classList.add('discarding');
@@ -135,7 +136,7 @@ const startRenderer = game => {
 		}
 		
 		game.players.forEach(player => {
-			fanCards($(`#player${player.uid} .hand`), player.hand);
+			fanCards($(`#player${player.uid} .hand`), player.hand, false, player.type === 'ai');
 			fanCards($(`#player${player.uid} .journey-area`), player.journey);
 			fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage, true);
 			let sabotaged = last(player.sabotage);
@@ -171,7 +172,7 @@ const startRenderer = game => {
 		}
 	});
 
-	const fanCards = ($pile, cards, cascade) => { // spread cards as a fan
+	const fanCards = ($pile, cards, cascade, facedown) => { // spread cards as a fan
 		let cardWidth = $('.card').offsetWidth,
 			coords = getCoords($pile),
 			width = Math.min(cardWidth * cards.length, $pile.offsetWidth),
@@ -189,7 +190,9 @@ const startRenderer = game => {
 				cx = coords.x + 2 * Math.min(5, i);
 				cy = coords.y + Math.min(5, i);
 			}
-			renderCard(card).style.transform = `translate(${cx}px, ${cy}px)`;
+			let $card = renderCard(card);
+			$card.classList.toggle('facedown', !!facedown);
+			$card.style.transform = `translate(${cx}px, ${cy}px)`;
 		});
 	};
 
@@ -198,7 +201,7 @@ const startRenderer = game => {
 		if (!$card) {
 			$card = $copy('#tmpl-card');
 			$card.setAttribute('id', `card${card.uid}`);
-			$('img', $card).src = `/cards/${card.id}-sm.png`;
+			$('.front', $card).src = `/cards/${card.id}-sm.png`;
 			$card.addEventListener('click', () => {
 				if (resolvePickCard) {
 					resolvePickCard(card);

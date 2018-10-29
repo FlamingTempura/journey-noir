@@ -164,10 +164,11 @@ class Game {
 			player.score = 0;
 			for (let pile of [player.journey, player.sabotage]) {
 				for (let card of pile) {
-					await this._moveCard(card, pile, this.discard);
+					this._moveCard(card, pile, this.discard);
 				}
 			}
 		}
+		await wait(1000);
 		let player = pick(this.players);
 		this.startPlayer = this.players.indexOf(player); // TODO: set to winner of previous round 
 		await this._emit('start-round', player);
@@ -221,7 +222,6 @@ class Game {
 				.filter(prospect => prospect.value > 0)
 				.map(prospect => [prospect.card, prospect.value]);
 			let skipChance = 0.5 - 0.4 * Math.log10(choices.length);
-			console.log('@@@', skipChance)
 			if (choices.length > 0 && Math.random() > skipChance) {
 				await this._playCard(player, pile, weightedPick(choices)); // TODO: AI should intelligently pass
 			} else if (!reviving) {

@@ -45,7 +45,7 @@ module.exports = [
 		description: 'Play on your sabotage pile to remedy a Stinger.',
 		artwork: 'remedy-puncture.jpg',
 		remedies: 'puncture',
-		quantity: 7
+		quantity: 3
 	},
 	{
 		type: 'remedy',
@@ -54,7 +54,7 @@ module.exports = [
 		quote: 'At the end of the road there’s a police stop. We call it the Toll Gate. But really your paying to not get noticed.',
 		artwork: 'remedy-speedlimit.jpg',
 		remedies: 'speedlimit',
-		quantity: 7
+		quantity: 3
 	},
 	{
 		type: 'remedy',
@@ -63,7 +63,7 @@ module.exports = [
 		quote: 'The cops were onto us. But here was a broad who knew the right color for a Plymouth. Scarlet. The color of her lipstick.',
 		artwork: 'remedy-pursuit.jpg',
 		remedies: 'pursuit',
-		quantity: 7
+		quantity: 3
 	},
 
 	// SKILLED DRIVERS
@@ -139,7 +139,7 @@ module.exports = [
 		name: 'Turncoat Rita',
 		description: 'Play to an opponent’s Journey pile and draw two cards.',
 		quote: 'Damn you Rita. Broke my heart. I should have seen this coming. The way you talked about them.',
-		artwork: 'driver-rita.jpg',
+		artwork: 'driver-rita.png',
 		distance: 0,
 		effect: 'turncoat',
 		quantity: 1
@@ -152,7 +152,7 @@ module.exports = [
 		artwork: 'driver-jenkins.jpg',
 		effect: 'turncoat',
 		distance: 20,
-		quantity: 3
+		quantity: 2
 	},
 	{
 		type: 'driver',
@@ -162,7 +162,7 @@ module.exports = [
 		artwork: 'driver-bill.jpg',
 		distance: 50,
 		effect: 'turncoat',
-		quantity: 5
+		quantity: 2
 	},
 
 	// DRIVER
@@ -200,7 +200,7 @@ module.exports = [
 		quote: 'I run through the alley. A broad calls out ’get in.’ I did. I open my mouth to speak, but she didn’t give a damn who I am.',
 		artwork: 'driver-cat.jpg',
 		distance: 30,
-		quantity: 6
+		quantity: 8
 	},
 	{
 		type: 'driver',
