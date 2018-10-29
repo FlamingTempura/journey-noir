@@ -29,7 +29,7 @@ body {
   margin: 0;
   font-family: 'Oswald', sans-serif;
   font-weight: 300;
-  background: url("/assets/felt.jpg") center top;
+  background: url("assets/felt.jpg") center top;
   overflow: hidden;
 }
 button {
