@@ -1,7 +1,9 @@
 'use strict';
 
 import { $, $copy, wait, last } from './utils';
-import { newGame } from './game';
+import Game from './game';
+import CleverAIPlayer from './player-cleverai';
+import HumanPlayer from './player-human';
 import CARDS from './cards';
 
 const $deck = $('#deck');
@@ -31,22 +33,6 @@ const startRenderer = game => {
 
 	let resolvePickCard;
 
-	game.on('redraw', async redrawCount => {
-		await message(`Pick a card to redraw (${redrawCount + 1}/2)`);
-		//enlargeHand();
-		$('#skipredraw').style.display = 'inline-block';
-		resolvePickCard = card => {
-			try {
-				game.redraw(card);
-				resolvePickCard = null;
-				//shrinkHand();
-				$('#skipredraw').style.display = 'none';
-			} catch (e) {
-				$status.textContent = e.message;
-			}
-		};
-	});
-
 	game.on('start-round', async startPlayer => {
 		game.players.forEach(player => {
 			$(`#player${player.uid} .score`).textContent = `0 miles`;
@@ -66,16 +52,6 @@ const startRenderer = game => {
 		});
 		if (activePlayer.type === 'human') {
 			await message('Your turn');
-			$('#pass').style.display = 'inline-block';
-			resolvePickCard = async card => {
-				try {
-					console.log('trying to play', card);
-					await game.play(card);
-					resolvePickCard = null;
-				} catch (e) {
-					message(e.message);
-				}
-			};
 		} else {
 			await message('Opponent\'s turn');
 		}
@@ -234,9 +210,41 @@ const renderHelp = () => {
 	});
 };
 
+const onWaitForRedraw = async redrawCount => {
+	await message(`Pick a card to redraw (${redrawCount + 1}/2)`);
+	$('#skipredraw').style.display = 'inline-block';
+	await new Promise(resolve => {
+		resolvePickCard = card => {
+			try {
+				resolve(card);
+				$('#skipredraw').style.display = 'none';
+			} catch (e) {
+				$status.textContent = e.message;
+			}
+		};
+	});
+};
+
+const onWaitForPlay = async () => {
+	await new Promise(resolve => {
+		$('#pass').style.display = 'inline-block';
+		resolvePickCard = async card => {
+			try {
+				console.log('trying to play', card);
+				resolve(card);
+				$('#pass').style.display = 'none';
+			} catch (e) {
+				message(e.message);
+			}
+		};
+	})
+}
+
 $('#play').addEventListener('click', () => {
 	$('#dlg-intro').style.display = 'none';
-	let game = newGame();
+	let human = new HumanPlayer({ onWaitForPlay, onWaitForRedraw }),
+		opponent = new CleverAIPlayer(),
+		game = new Game([human, opponent]);
 	startRenderer(game);
 	game.start();
 });

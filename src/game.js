@@ -1,5 +1,5 @@
 import CARDS from './cards';
-import { times, shuffle, random, wait, weightedPick, removeEl, pick } from './utils';
+import { times, shuffle, random, wait, removeEl, pick, deepClone } from './utils';
 
 const topCard = arr => arr[arr.length - 1] || {};
 
@@ -33,9 +33,11 @@ const orderCards = cards => {
 		.forEach((a, i) => cards.splice(i, 1, a[1]));
 };
 
-class Game {
-	constructor() {
+export default class Game {
+	constructor(players) {
 		this.listeners = {};
+		this.players = players;
+		players.forEach(player => player.game = this);
 	}
 	on(event, callback) {
 		if (!this.listeners[event]) { this.listeners[event] = []; }
@@ -50,22 +52,14 @@ class Game {
 		let callbacks = this.listeners[event] || [];
 		await Promise.all(callbacks.map(cb => cb(...args)));
 	}
+	async clone() {
+		return deepClone(this);
+	}
 	async start() {
 		this._emit('status', 'Dealing...');
 		this.deck = createDeck();
 		this.discard = [];
 		this.turn = -3; // not yet started
-		this.players = times(2, i => {
-			return {
-				uid: i,
-				name: `Player ${i + 1}`,
-				type: i === 0 ? 'ai' : 'human',
-				hand: [],
-				journey: [],
-				sabotage: [],
-				tokens: 0
-			};
-		});
 
 		await this._emit('setup');
 
@@ -109,14 +103,6 @@ class Game {
 		await this._emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
 	}
 
-	// Artificial thinking time
-	async _thinking(player, min, max) {
-		this._emit('status', 'AI is thinking....');
-		player._thinking = true;
-		await wait(random(min, max || min));
-		player._thinking = false;
-	}
-
 	// Each player is allowed to redraw 2 cards before the first round begins
 	async _awaitRedraw(player, redrawCount = 0) {
 		this._emit('status', 'Waiting for player to redraw a card...');
@@ -133,27 +119,9 @@ class Game {
 				}
 			}
 		};
-		if (player.type === 'ai') {
-			await this._thinking(player, 800);
-			if (Math.random() > 0.4) { // TODO: make this more intelligent
-				await redraw(pick(player.hand)); 
-			}
-		} else {
-			await new Promise(resolve => {
-				this._emit('redraw', redrawCount);
-				this.resolveRedraw = async card => {
-					delete this.resolveRedraw;
-					await redraw(card);
-					resolve();
-				};
-			});
-		}
-	}
-
-	// Redraws a card in player's hand. If undefined, no card will be redrawed
-	async redraw(card) {
-		if (this.resolveRedraw) {
-			await this.resolveRedraw(card);
+		let card = await player.redraw();
+		if (card) {
+			await redraw(card)
 		}
 	}
 
@@ -216,43 +184,11 @@ class Game {
 		}
 		let pile = reviving ? this.discard : player.hand,
 			prospects = this._getProspects(player, pile);
-		if (player.type === 'ai') {
-			await this._thinking(player, 1800);
-			let choices = prospects
-				.filter(prospect => prospect.value > 0)
-				.map(prospect => [prospect.card, prospect.value]);
-			let skipChance = 0.5 - 0.4 * Math.log10(choices.length);
-			if (choices.length > 0 && Math.random() > skipChance) {
-				await this._playCard(player, pile, weightedPick(choices)); // TODO: AI should intelligently pass
-			} else if (!reviving) {
-				await this._pass(player);
-			}
-		} else {
-			await new Promise(resolve => {
-				this.resolvePlay = async card => {
-					if (card) {
-						let prospect = prospects.find(p => p.card === card);
-						if (!prospect) {
-							console.log('ignored, not player\'s own card');
-							return;
-						}
-						if (prospect.value < 0) {
-							throw new Error(prospect.reason);
-						}
-						await this._playCard(player, pile, card);
-					} else if (!reviving) {
-						await this._pass(player);
-					}
-					resolve();
-					delete this.resolvePlay;
-				};
-			});
-		}
-	}
-
-	async play(card) {
-		if (this.resolvePlay) {
-			await this.resolvePlay(card);
+		let card = await player.play(prospects);
+		if (card) {
+			await this._playCard(player, pile, card);
+		} else if (!reviving) {
+			await this._pass(player);
 		}
 	}
 
@@ -352,5 +288,3 @@ class Game {
 		});
 	}
 }
-
-export const newGame = () => new Game();

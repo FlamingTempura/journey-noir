@@ -47,3 +47,14 @@ export const removeEl = (arr, el) => {
 };
 
 export const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+export const deepClone = obj => {
+	if (obj instanceof Array) {
+		return obj.map(el => deepClone(el));
+	} else if (obj instanceof Object) {
+		let copy = {};
+		Object.entries(obj).forEach(([k, v]) => copy[k] = deepClone[v]);
+		return copy;
+	}
+	return obj;
+};

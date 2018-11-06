@@ -11,21 +11,18 @@ const CARDS = require('./src/cards.js');
 const phantom = require('phantom');
 
 const styles = async () => {
-	let data = await fs.readFile('src/style.less', 'utf8'),
+	let data = await fs.readFile(path.join(__dirname, 'src', 'style.less'), 'utf8'),
 		output = await less.render(data);
-	await fs.writeFile('style.css', output.css, 'utf8');
+	await fs.writeFile(path.join(__dirname, 'style.css'), output.css, 'utf8');
 };
 
 const scripts = async () => {
 	let bundle = await rollup.rollup({
-		input: 'src/main.js',
-		plugins: [
-			resolve(),
-			commonjs()
-		]
+		input: path.join(__dirname, 'src', 'main.js'),
+		plugins: [resolve(), commonjs()]
 	});
 	await bundle.write({
-		name: 'blah',
+		name: 'journey',
 		format: 'iife',
 		sourcemap: true,
 		file: 'bundle.js'
@@ -37,7 +34,7 @@ const mustache = (str = '', data = {}) => str.replace(/\{\{([^}]+)\}\}/g, (m, ke
 const svg2png = async (svg, filename, { width, height }) => {
 	let instance = await phantom.create(),
 		page = await instance.createPage();
-	await page.setContent(svg, `file://${__dirname}/`);
+	await page.setContent(svg, `file:///${__dirname.replace(/\\/g, '/')}/`);
 	await page.property('content');
 	await page.property('viewportSize', { width, height });
 	await page.render(filename);
@@ -57,8 +54,8 @@ const colors = {
 };
 
 const cards = async () => {
-	let templateSmall = await fs.readFile('./src/templates/small.svg', 'utf8'),
-		templateLarge = await fs.readFile('./src/templates/large.svg', 'utf8'),
+	let templateSmall = await fs.readFile(path.join(__dirname, 'src', 'templates', 'small.svg'), 'utf8'),
+		templateLarge = await fs.readFile(path.join(__dirname, 'src', 'templates', 'large.svg'), 'utf8'),
 		promises = [];
 
 	for (let card of CARDS) {
@@ -67,7 +64,7 @@ const cards = async () => {
 				color: colors[card.type],
 				ringColor: card.prevents ? '#ffb142' : colors[card.type],
 				distance: card.hasOwnProperty('distance') ? card.distance : '',
-				icon: icon && await fs.readFile(`./icons/${icon}.svg`, 'utf8'),
+				icon: icon && await fs.readFile(path.join(__dirname, 'icons', `${icon}.svg`), 'utf8'),
 				showIcon1: card.type !== 'driver' && icon ? 1 : 0,
 				showIcon2: card.type === 'driver' && icon ? 1 : 0,
 				crossIcon1: card.type !== 'driver' && (card.remedies || card.prevents) ? 1 : 0,
@@ -84,8 +81,8 @@ const cards = async () => {
 					.replace(/href="[^"]*\.jpg"/, `href="./src/artwork/${card.artwork}"`);
 			});
 		promises.push(
-			svg2png(large, `./cards/${CARDS.indexOf(card)}.png`, svgSize(templateLarge)),
-			svg2png(small, `./cards/${CARDS.indexOf(card)}-sm.png`, svgSize(templateSmall))
+			svg2png(large, path.join(__dirname, 'cards', `${CARDS.indexOf(card)}.png`), svgSize(templateLarge)),
+			svg2png(small, path.join(__dirname, 'cards', `${CARDS.indexOf(card)}-sm.png`), svgSize(templateSmall))
 		);
 	}
 	await Promise.all(promises);

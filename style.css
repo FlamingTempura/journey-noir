@@ -2,25 +2,25 @@
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 300;
-  src: local('Oswald Light'), local('Oswald-Light'), url(https://fonts.gstatic.com/s/oswald/v16/TK3hWkUHHAIjg75-sh0Tus9H.ttf) format('truetype');
+  src: url('./fonts/Oswald-Light.ttf');
 }
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 400;
-  src: local('Oswald Regular'), local('Oswald-Regular'), url(https://fonts.gstatic.com/s/oswald/v16/TK3iWkUHHAIjg752GT8D.ttf) format('truetype');
+  src: url('./fonts/Oswald-Regular.ttf');
 }
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 500;
-  src: local('Oswald Medium'), local('Oswald-Medium'), url(https://fonts.gstatic.com/s/oswald/v16/TK3hWkUHHAIjg75-6hwTus9H.ttf) format('truetype');
+  src: url('./fonts/Oswald-Medium.ttf');
 }
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 600;
-  src: local('Oswald SemiBold'), local('Oswald-SemiBold'), url(https://fonts.gstatic.com/s/oswald/v16/TK3hWkUHHAIjg75-xhsTus9H.ttf) format('truetype');
+  src: url('./fonts/Oswald-SemiBold.ttf');
 }
 * {
   box-sizing: border-box;
