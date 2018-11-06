@@ -37,7 +37,7 @@ const mustache = (str = '', data = {}) => str.replace(/\{\{([^}]+)\}\}/g, (m, ke
 const svg2png = async (svg, filename, { width, height }) => {
 	let instance = await phantom.create(),
 		page = await instance.createPage();
-	await page.setContent(svg, `file://${__dirname}/src/`);
+	await page.setContent(svg, `file://${__dirname}/`);
 	await page.property('content');
 	await page.property('viewportSize', { width, height });
 	await page.render(filename);
@@ -81,7 +81,7 @@ const cards = async () => {
 					.replace(/(\n\s*).*<!--CONTENT:([^-]+)-->/g, (m, indent, key) => indent + data[key])
 					.replace(/\sx-style-([^=]+)="([^"]+)"/g, (m, attr, key) => ` style="${attr}:${data[key]}"`)
 					.replace(/\sx-([^=]+)="([^"]+)"/g, (m, attr, key) => ` ${attr}="${data[key]}"`)
-					.replace(/href="[^"]*\.jpg"/, `href="./artwork/${card.artwork}"`);
+					.replace(/href="[^"]*\.jpg"/, `href="./src/artwork/${card.artwork}"`);
 			});
 		promises.push(
 			svg2png(large, `./cards/${CARDS.indexOf(card)}.png`, svgSize(templateLarge)),
