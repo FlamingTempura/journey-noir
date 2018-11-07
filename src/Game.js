@@ -1,5 +1,5 @@
 import CARDS from './cards';
-import { times, shuffle, random, wait, removeEl, pick, deepClone } from './utils';
+import { times, shuffle, wait, removeEl, pick, Events } from './utils';
 
 const topCard = arr => arr[arr.length - 1] || {};
 
@@ -17,7 +17,6 @@ const createDeck = () => {
 
 // Sort by sabotage cards first, then remedy cards, then drivers in order of distance
 const orderCards = cards => {
-	console.log('order', cards);
 	cards.map(card => {
 			let index;
 			if (card.type === 'sabotage') {
@@ -33,35 +32,25 @@ const orderCards = cards => {
 		.forEach((a, i) => cards.splice(i, 1, a[1]));
 };
 
-export default class Game {
-	constructor(players) {
-		this.listeners = {};
-		this.players = players;
-		players.forEach(player => player.game = this);
+
+export default class Game extends Events {
+	constructor() {
+		super();
+		this.players = [];
 	}
-	on(event, callback) {
-		if (!this.listeners[event]) { this.listeners[event] = []; }
-		this.listeners[event].push(callback);
+
+	async addPlayer(player) {
+		player.game = this;
+		this.players.push(player);
 	}
-	off(event, callback) {
-		let callbacks = this.listeners[event] || [];
-		this.listeners[event] = callbacks.filter(cb => cb !== callback);
-	}
-	async _emit(event, ...args) {
-		console.log(`event:${event}`, ...args);
-		let callbacks = this.listeners[event] || [];
-		await Promise.all(callbacks.map(cb => cb(...args)));
-	}
-	async clone() {
-		return deepClone(this);
-	}
+
 	async start() {
-		this._emit('status', 'Dealing...');
 		this.deck = createDeck();
 		this.discard = [];
 		this.turn = -3; // not yet started
 
-		await this._emit('setup');
+		await this.emit('setup');
+		this.emit('status', 'Dealing...');
 
 		for (let i = 0; i < 10; i++) { // deal 10 cards to each player
 			for (let player of this.players) {
@@ -94,34 +83,30 @@ export default class Game {
 
 	// Move a card from one pile to another
 	async _moveCard(card, from, to) {
+		if (from.indexOf(card) < 0) {
+			console.error('card move fail');
+			console.log(card, from, to, this);
+		}
 		removeEl(from, card);
 		to.push(card);
 		let id = this._identifyPile(to);
 		if (id.pile === 'hand' || id.pile === 'journey') {
 			orderCards(to);
 		}
-		await this._emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
+		await this.emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
 	}
 
 	// Each player is allowed to redraw 2 cards before the first round begins
 	async _awaitRedraw(player, redrawCount = 0) {
-		this._emit('status', 'Waiting for player to redraw a card...');
-		let redraw = async card => {
-			this._emit('status', 'Redrawing...');
-			if (card) {
-				if (!player.hand.includes(card)) {
-					throw new Error('Pick a card of your own to redraw, or click Skip Redraw');
-				}
-				await this._moveCard(card, player.hand, this.discard);
-				await this._moveCard(this.deck[0], this.deck, player.hand);
-				if (redrawCount < 1) {
-					await this._awaitRedraw(player, redrawCount + 1);
-				}
-			}
-		};
-		let card = await player.redraw();
+		this.emit('status', `Waiting for ${player.name} (${player.type}) to redraw a card...`);
+		let card = await player.redraw(redrawCount);
 		if (card) {
-			await redraw(card)
+			this.emit('status', 'Redrawing...');
+			await this._moveCard(card, player.hand, this.discard);
+			await this._moveCard(this.deck[0], this.deck, player.hand);
+			if (redrawCount < 1) {
+				await this._awaitRedraw(player, redrawCount + 1);
+			}
 		}
 	}
 
@@ -131,23 +116,24 @@ export default class Game {
 			player.passed = false;
 			player.score = 0;
 			for (let pile of [player.journey, player.sabotage]) {
-				for (let card of pile) {
+				let _pile = [].concat(pile); // since we'll be remove items from the array, we need to loop through a copy of the array
+				for (let card of _pile) {
 					this._moveCard(card, pile, this.discard);
 				}
 			}
 		}
-		await wait(1000);
 		let player = pick(this.players);
+		this.emit('status', `${player.name} (${player.type}) will go first`);
 		this.startPlayer = this.players.indexOf(player); // TODO: set to winner of previous round 
-		await this._emit('start-round', player);
+		await this.emit('start-round', player);
 		this._nextTurn();
 	}
 
 	async _endRound() {
-		let winner = this.players.reduce((a, b) => a.score > b.score ? a : b);
+		let winner = this.players.reduce((a, b) => a.score > b.score ? a : b); // FIXME: does not handle ties
 		winner.tokens++;
 		let gameEnd = winner.tokens === 2;
-		await this._emit('end-round', winner, gameEnd);
+		await this.emit('end-round', winner, gameEnd);
 		if (!gameEnd) {
 			this._startRound();
 		}
@@ -164,41 +150,44 @@ export default class Game {
 		} else if (player.passed) {
 			this._nextTurn();
 		} else {
-			await this._emit('start-turn', player, this.turn);
+			await this.emit('start-turn', player, this.turn);
 			await this._awaitPlay(player);
 			for (let player of this.players) {
 				player.score = player.journey.reduce((sum, card) => sum + card.distance, 0);
 			}
-			await this._emit('end-turn', player, this.turn);
-			console.log('--------------  Turn finished  --------------');
+			await this.emit('end-turn', player, this.turn);
+			//console.log(`--------------  Turn ${this.turn} finished  --------------`);
 			this._nextTurn();
 		}
 	}
 
 	async _awaitPlay(player, reviving) {
 		if (reviving) {
-			this._emit('status', 'Waiting for player to play a card from discard pile...');
-			this._emit('revive', player);
+			this.emit('status', `Waiting for ${player.name} (${player.type}) to play a card from discard pile...`);
 		} else {
-			this._emit('status', 'Waiting for player to play a card from their hand...');
+			this.emit('status', `Waiting for ${player.name} (${player.type}) to play a card from their hand...`);
 		}
+
 		let pile = reviving ? this.discard : player.hand,
-			prospects = this._getProspects(player, pile);
-		let card = await player.play(prospects);
+			possibleMoves = this._getPossibleMoves(player, pile),
+			card = await player.play(reviving, possibleMoves);
+
 		if (card) {
 			await this._playCard(player, pile, card);
-		} else if (!reviving) {
+		}
+
+		if (!card && !reviving) {
 			await this._pass(player);
 		}
 	}
 
 	async _pass(player) {
 		player.passed = true;
-		await this._emit('pass', player);
+		await this.emit('pass', player);
 	}
 
 	async _playCard(player, from, card) {
-		this._emit('status', `${player.name} played ${card.name}...`);
+		this.emit('status', `${player.name} played ${card.name}...`);
 		let opponent = this.players.find(p => p !== player);
 
 		if (card.type === 'sabotage') {
@@ -244,47 +233,41 @@ export default class Game {
 		}
 	}
 
-	// For each card in a players hand, rank them by best to play:
-	// If a prospect is > 0, then it is a legal play, and higher numbers are better cards to play.
-	// If a prospect is < 0, then it is an illegal play
-	_getProspect(player, card) {
+	// remedies always allowed, even if it will have no effect
+	_isIllegal(player, card) {
 		let opponent = this.players.find(p => p !== player);
-		if (card.type === 'sabotage') {
-			if (card.effect !== 'detour' && opponent.journey.find(p => p.prevents === card.effect)) {
-				return [-1, `${card.name} cannot be played because ${opponent.name} is protected`];
-			}
-			return [1];
+
+		// detour always allowed, even if it will have no effect
+		if (card.type === 'sabotage' && card.effect !== 'detour' && opponent.journey.find(c => c.prevents === card.effect)) {
+			return `${card.name} cannot be played because ${opponent.name} is protected`;
 		}
-		if (card.type === 'remedy') {
-			if (topCard(player.sabotage).sabotages === card.remedies) {
-				return [1];
-			}
-			return [0.2];
-		}
+
 		if (card.type === 'driver') {
 			let target = card.effect === 'turncoat' ? opponent : player,
 				sabotage = topCard(target.sabotage);
 
 			if (sabotage.effect === 'puncture' && card.remedies !== 'puncture') {
-				console.log();
-				return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a puncture`];
+				return `${card.name} (${card.distance}) cannot be played because ${target.type === 'Human' ? 'you' : target.name} has a puncture`;
 			}
 
 			if (sabotage.effect === 'speedlimit' && card.remedies !== 'speedlimit' && card.distance > 10) {
-				return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a speed limit`];
+				return `${card.name} (${card.distance}) cannot be played because ${target.type === 'Human' ? 'you' : target.name} has a speed limit`;
 			}
 
 			if (sabotage.effect === 'pursuit' && card.remedies !== 'pursuit' && card.distance < 75) {
-				return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a pursuit`];
+				return `${card.name} (${card.distance}) cannot be played because ${target.type === 'Human' ? 'you' : target.name} has a pursuit`;
 			}
-			return [1]; // TODO: higher cards are better
 		}
 	}
 
-	_getProspects(player, cards) {
+	_getPossibleMoves(player, cards) {
 		return cards.map(card => {
-			let prospect = this._getProspect(player, card);
-			return { card, value: prospect[0], reason: prospect[1] };
+			let reason = this._isIllegal(player, card);
+			if (reason) {
+				return { card, legal: false, reason };
+			} else {
+				return { card, legal: true };
+			}
 		});
 	}
 }

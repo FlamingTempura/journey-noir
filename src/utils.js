@@ -7,14 +7,14 @@ export const $copy = (selector, $root = document) => $('*', $root.importNode($(s
 export const times = (n, cb) => Array(n).fill(0).map((u, i) => cb(i));
 
 export const shuffle = (arr) => {
-    var j, x, i;
-    for (i = arr.length - 1; i > 0; i--) {
-        j = Math.floor(Math.random() * (i + 1));
-        x = arr[i];
-        arr[i] = arr[j];
-        arr[j] = x;
-    }
-    return arr;
+	var j, x, i;
+	for (i = arr.length - 1; i > 0; i--) {
+		j = Math.floor(Math.random() * (i + 1));
+		x = arr[i];
+		arr[i] = arr[j];
+		arr[j] = x;
+	}
+	return arr;
 };
 
 export const random = (min, max) => Math.round(min + Math.random() * (max - min));
@@ -35,7 +35,6 @@ export const weightedPick = arr => {
 		choices.push({ min: sum - probability, max: sum, el });
 	});
 	let val = Math.random() * sum;
-	console.log(val, choices);
 	return choices.find(({ min, max }) => val >= min && val < max).el;
 };
 
@@ -53,8 +52,26 @@ export const deepClone = obj => {
 		return obj.map(el => deepClone(el));
 	} else if (obj instanceof Object) {
 		let copy = {};
-		Object.entries(obj).forEach(([k, v]) => copy[k] = deepClone[v]);
+		Object.entries(obj).forEach(([k, v]) => copy[k] = deepClone(v));
 		return copy;
 	}
 	return obj;
 };
+
+export class Events {
+	constructor() {
+		this.listeners = {};
+	}
+	on(event, callback) {
+		if (!this.listeners[event]) { this.listeners[event] = []; }
+		this.listeners[event].push(callback);
+	}
+	off(event, callback) {
+		let callbacks = this.listeners[event] || [];
+		this.listeners[event] = callbacks.filter(cb => cb !== callback);
+	}
+	async emit(event, ...args) {
+		let callbacks = this.listeners[event] || [];
+		await Promise.all(callbacks.map(cb => cb(...args)));
+	}
+}

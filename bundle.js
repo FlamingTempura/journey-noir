@@ -8,14 +8,14 @@
 	const times = (n, cb) => Array(n).fill(0).map((u, i) => cb(i));
 
 	const shuffle = (arr) => {
-	    var j, x, i;
-	    for (i = arr.length - 1; i > 0; i--) {
-	        j = Math.floor(Math.random() * (i + 1));
-	        x = arr[i];
-	        arr[i] = arr[j];
-	        arr[j] = x;
-	    }
-	    return arr;
+		var j, x, i;
+		for (i = arr.length - 1; i > 0; i--) {
+			j = Math.floor(Math.random() * (i + 1));
+			x = arr[i];
+			arr[i] = arr[j];
+			arr[j] = x;
+		}
+		return arr;
 	};
 
 	const random = (min, max) => Math.round(min + Math.random() * (max - min));
@@ -26,18 +26,6 @@
 
 	const last = arr => arr[arr.length - 1];
 
-	const weightedPick = arr => {
-		let sum = 0,
-			choices = [];
-		arr.forEach(([el, probability]) => {
-			sum += probability;
-			choices.push({ min: sum - probability, max: sum, el });
-		});
-		let val = Math.random() * sum;
-		console.log(val, choices);
-		return choices.find(({ min, max }) => val >= min && val < max).el;
-	};
-
 	const removeEl = (arr, el) => {
 		let i = arr.indexOf(el);
 		if (i > -1) {
@@ -46,6 +34,24 @@
 	};
 
 	const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+	class Events {
+		constructor() {
+			this.listeners = {};
+		}
+		on(event, callback) {
+			if (!this.listeners[event]) { this.listeners[event] = []; }
+			this.listeners[event].push(callback);
+		}
+		off(event, callback) {
+			let callbacks = this.listeners[event] || [];
+			this.listeners[event] = callbacks.filter(cb => cb !== callback);
+		}
+		async emit(event, ...args) {
+			let callbacks = this.listeners[event] || [];
+			await Promise.all(callbacks.map(cb => cb(...args)));
+		}
+	}
 
 	var cards = [
 		// SABOTAGE
@@ -296,7 +302,6 @@
 
 	// Sort by sabotage cards first, then remedy cards, then drivers in order of distance
 	const orderCards = cards$$1 => {
-		console.log('order', cards$$1);
 		cards$$1.map(card => {
 				let index;
 				if (card.type === 'sabotage') {
@@ -312,41 +317,25 @@
 			.forEach((a, i) => cards$$1.splice(i, 1, a[1]));
 	};
 
-	class Game {
+
+	class Game extends Events {
 		constructor() {
-			this.listeners = {};
+			super();
+			this.players = [];
 		}
-		on(event, callback) {
-			if (!this.listeners[event]) { this.listeners[event] = []; }
-			this.listeners[event].push(callback);
+
+		async addPlayer(player) {
+			player.game = this;
+			this.players.push(player);
 		}
-		off(event, callback) {
-			let callbacks = this.listeners[event] || [];
-			this.listeners[event] = callbacks.filter(cb => cb !== callback);
-		}
-		async _emit(event, ...args) {
-			console.log(`event:${event}`, ...args);
-			let callbacks = this.listeners[event] || [];
-			await Promise.all(callbacks.map(cb => cb(...args)));
-		}
+
 		async start() {
-			this._emit('status', 'Dealing...');
 			this.deck = createDeck();
 			this.discard = [];
 			this.turn = -3; // not yet started
-			this.players = times(2, i => {
-				return {
-					uid: i,
-					name: `Player ${i + 1}`,
-					type: i === 0 ? 'ai' : 'human',
-					hand: [],
-					journey: [],
-					sabotage: [],
-					tokens: 0
-				};
-			});
 
-			await this._emit('setup');
+			await this.emit('setup');
+			this.emit('status', 'Dealing...');
 
 			for (let i = 0; i < 10; i++) { // deal 10 cards to each player
 				for (let player of this.players) {
@@ -379,60 +368,30 @@
 
 		// Move a card from one pile to another
 		async _moveCard(card, from, to) {
+			if (from.indexOf(card) < 0) {
+				console.error('card move fail');
+				console.log(card, from, to, this);
+			}
 			removeEl(from, card);
 			to.push(card);
 			let id = this._identifyPile(to);
 			if (id.pile === 'hand' || id.pile === 'journey') {
 				orderCards(to);
 			}
-			await this._emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
-		}
-
-		// Artificial thinking time
-		async _thinking(player, min, max) {
-			this._emit('status', 'AI is thinking....');
-			player._thinking = true;
-			await wait(random(min, max || min));
-			player._thinking = false;
+			await this.emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
 		}
 
 		// Each player is allowed to redraw 2 cards before the first round begins
 		async _awaitRedraw(player, redrawCount = 0) {
-			this._emit('status', 'Waiting for player to redraw a card...');
-			let redraw = async card => {
-				this._emit('status', 'Redrawing...');
-				if (card) {
-					if (!player.hand.includes(card)) {
-						throw new Error('Pick a card of your own to redraw, or click Skip Redraw');
-					}
-					await this._moveCard(card, player.hand, this.discard);
-					await this._moveCard(this.deck[0], this.deck, player.hand);
-					if (redrawCount < 1) {
-						await this._awaitRedraw(player, redrawCount + 1);
-					}
+			this.emit('status', `Waiting for ${player.name} (${player.type}) to redraw a card...`);
+			let card = await player.redraw(redrawCount);
+			if (card) {
+				this.emit('status', 'Redrawing...');
+				await this._moveCard(card, player.hand, this.discard);
+				await this._moveCard(this.deck[0], this.deck, player.hand);
+				if (redrawCount < 1) {
+					await this._awaitRedraw(player, redrawCount + 1);
 				}
-			};
-			if (player.type === 'ai') {
-				await this._thinking(player, 800);
-				if (Math.random() > 0.4) { // TODO: make this more intelligent
-					await redraw(pick(player.hand)); 
-				}
-			} else {
-				await new Promise(resolve => {
-					this._emit('redraw', redrawCount);
-					this.resolveRedraw = async card => {
-						delete this.resolveRedraw;
-						await redraw(card);
-						resolve();
-					};
-				});
-			}
-		}
-
-		// Redraws a card in player's hand. If undefined, no card will be redrawed
-		async redraw(card) {
-			if (this.resolveRedraw) {
-				await this.resolveRedraw(card);
 			}
 		}
 
@@ -442,23 +401,24 @@
 				player.passed = false;
 				player.score = 0;
 				for (let pile of [player.journey, player.sabotage]) {
-					for (let card of pile) {
+					let _pile = [].concat(pile); // since we'll be remove items from the array, we need to loop through a copy of the array
+					for (let card of _pile) {
 						this._moveCard(card, pile, this.discard);
 					}
 				}
 			}
-			await wait(1000);
 			let player = pick(this.players);
+			this.emit('status', `${player.name} (${player.type}) will go first`);
 			this.startPlayer = this.players.indexOf(player); // TODO: set to winner of previous round 
-			await this._emit('start-round', player);
+			await this.emit('start-round', player);
 			this._nextTurn();
 		}
 
 		async _endRound() {
-			let winner = this.players.reduce((a, b) => a.score > b.score ? a : b);
+			let winner = this.players.reduce((a, b) => a.score > b.score ? a : b); // FIXME: does not handle ties
 			winner.tokens++;
 			let gameEnd = winner.tokens === 2;
-			await this._emit('end-round', winner, gameEnd);
+			await this.emit('end-round', winner, gameEnd);
 			if (!gameEnd) {
 				this._startRound();
 			}
@@ -475,73 +435,44 @@
 			} else if (player.passed) {
 				this._nextTurn();
 			} else {
-				await this._emit('start-turn', player, this.turn);
+				await this.emit('start-turn', player, this.turn);
 				await this._awaitPlay(player);
 				for (let player of this.players) {
 					player.score = player.journey.reduce((sum$$1, card) => sum$$1 + card.distance, 0);
 				}
-				await this._emit('end-turn', player, this.turn);
-				console.log('--------------  Turn finished  --------------');
+				await this.emit('end-turn', player, this.turn);
+				//console.log(`--------------  Turn ${this.turn} finished  --------------`);
 				this._nextTurn();
 			}
 		}
 
 		async _awaitPlay(player, reviving) {
 			if (reviving) {
-				this._emit('status', 'Waiting for player to play a card from discard pile...');
-				this._emit('revive', player);
+				this.emit('status', `Waiting for ${player.name} (${player.type}) to play a card from discard pile...`);
 			} else {
-				this._emit('status', 'Waiting for player to play a card from their hand...');
+				this.emit('status', `Waiting for ${player.name} (${player.type}) to play a card from their hand...`);
 			}
-			let pile = reviving ? this.discard : player.hand,
-				prospects = this._getProspects(player, pile);
-			if (player.type === 'ai') {
-				await this._thinking(player, 1800);
-				let choices = prospects
-					.filter(prospect => prospect.value > 0)
-					.map(prospect => [prospect.card, prospect.value]);
-				let skipChance = 0.5 - 0.4 * Math.log10(choices.length);
-				if (choices.length > 0 && Math.random() > skipChance) {
-					await this._playCard(player, pile, weightedPick(choices)); // TODO: AI should intelligently pass
-				} else if (!reviving) {
-					await this._pass(player);
-				}
-			} else {
-				await new Promise(resolve => {
-					this.resolvePlay = async card => {
-						if (card) {
-							let prospect = prospects.find(p => p.card === card);
-							if (!prospect) {
-								console.log('ignored, not player\'s own card');
-								return;
-							}
-							if (prospect.value < 0) {
-								throw new Error(prospect.reason);
-							}
-							await this._playCard(player, pile, card);
-						} else if (!reviving) {
-							await this._pass(player);
-						}
-						resolve();
-						delete this.resolvePlay;
-					};
-				});
-			}
-		}
 
-		async play(card) {
-			if (this.resolvePlay) {
-				await this.resolvePlay(card);
+			let pile = reviving ? this.discard : player.hand,
+				possibleMoves = this._getPossibleMoves(player, pile),
+				card = await player.play(reviving, possibleMoves);
+
+			if (card) {
+				await this._playCard(player, pile, card);
+			}
+
+			if (!card && !reviving) {
+				await this._pass(player);
 			}
 		}
 
 		async _pass(player) {
 			player.passed = true;
-			await this._emit('pass', player);
+			await this.emit('pass', player);
 		}
 
 		async _playCard(player, from, card) {
-			this._emit('status', `${player.name} played ${card.name}...`);
+			this.emit('status', `${player.name} played ${card.name}...`);
 			let opponent = this.players.find(p => p !== player);
 
 			if (card.type === 'sabotage') {
@@ -587,262 +518,298 @@
 			}
 		}
 
-		// For each card in a players hand, rank them by best to play:
-		// If a prospect is > 0, then it is a legal play, and higher numbers are better cards to play.
-		// If a prospect is < 0, then it is an illegal play
-		_getProspect(player, card) {
+		// remedies always allowed, even if it will have no effect
+		_isIllegal(player, card) {
 			let opponent = this.players.find(p => p !== player);
-			if (card.type === 'sabotage') {
-				if (card.effect !== 'detour' && opponent.journey.find(p => p.prevents === card.effect)) {
-					return [-1, `${card.name} cannot be played because ${opponent.name} is protected`];
-				}
-				return [1];
+
+			// detour always allowed, even if it will have no effect
+			if (card.type === 'sabotage' && card.effect !== 'detour' && opponent.journey.find(c => c.prevents === card.effect)) {
+				return `${card.name} cannot be played because ${opponent.name} is protected`;
 			}
-			if (card.type === 'remedy') {
-				if (topCard(player.sabotage).sabotages === card.remedies) {
-					return [1];
-				}
-				return [0.2];
-			}
+
 			if (card.type === 'driver') {
 				let target = card.effect === 'turncoat' ? opponent : player,
 					sabotage = topCard(target.sabotage);
 
 				if (sabotage.effect === 'puncture' && card.remedies !== 'puncture') {
-					console.log();
-					return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a puncture`];
+					return `${card.name} (${card.distance}) cannot be played because ${target.type === 'Human' ? 'you' : target.name} has a puncture`;
 				}
 
 				if (sabotage.effect === 'speedlimit' && card.remedies !== 'speedlimit' && card.distance > 10) {
-					return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a speed limit`];
+					return `${card.name} (${card.distance}) cannot be played because ${target.type === 'Human' ? 'you' : target.name} has a speed limit`;
 				}
 
 				if (sabotage.effect === 'pursuit' && card.remedies !== 'pursuit' && card.distance < 75) {
-					return [-1, `${card.name} (${card.distance}) cannot be played because ${target.type === 'human' ? 'you' : target.name} has a pursuit`];
+					return `${card.name} (${card.distance}) cannot be played because ${target.type === 'Human' ? 'you' : target.name} has a pursuit`;
 				}
-				return [1]; // TODO: higher cards are better
 			}
 		}
 
-		_getProspects(player, cards$$1) {
+		_getPossibleMoves(player, cards$$1) {
 			return cards$$1.map(card => {
-				let prospect = this._getProspect(player, card);
-				return { card, value: prospect[0], reason: prospect[1] };
+				let reason = this._isIllegal(player, card);
+				if (reason) {
+					return { card, legal: false, reason };
+				} else {
+					return { card, legal: true };
+				}
 			});
 		}
 	}
 
-	const newGame = () => new Game();
+	let uid = 0;
+	class Player {
+		constructor() {
+			this.uid = uid++;
+			this.name = `Player ${uid}`;
+			this.hand = [];
+			this.journey = [];
+			this.sabotage = [];
+			this.tokens = 0;
+		}
+	}
+
+	class PlayerBasicAI extends Player {
+		constructor() {
+			super();
+			this.type = 'AI';
+		}
+
+		async redraw() {
+			await this._thinking(800);
+			if (Math.random() > 0.4) {
+				return pick(this.hand); 
+			}
+			return null; // skip redraw
+		}
+
+		async play(revive, possibleMoves) {
+			await this._thinking(1800);
+
+			let choices = possibleMoves
+					.filter(move => move.legal)
+					.map(move => move.card),
+
+				skipChance = Math.max(0.1, Math.min(0.9, 0.5 - 0.4 * Math.log10(choices.length)));
+
+			if (choices.length > 0 && Math.random() > skipChance) {
+				return pick(choices);
+			}
+
+			return null; // otherwise, pass
+		}
+
+		// Artificial thinking time
+		async _thinking(min, max) {
+			await wait(random(min, max || min));
+		}
+	}
+
+	const cloneGame = game => {
+		let _game = new Game();
+		_game.deck = [].concat(game.deck);
+		_game.discard = [].concat(game.discard);
+		_game.turn = game.turn;
+		_game.startPlayer = game.startPlayer;
+		_game.players = game.players.map(player => {
+			let _player = new PlayerBasicAI();
+			_player._thinking = () => {}; // disable thinking time for simultations
+			_player.game = _game;
+			_player.name = `Simulation of ${player.name}`;
+			_player.hand = [].concat(player.hand);
+			_player.journey = [].concat(player.journey);
+			_player.sabotage = [].concat(player.sabotage);
+			_player.tokens = player.tokens;
+			//_player.original = player;
+			_player.score = player.score;
+			_player.passed = player.passed;
+			return _player;
+		});
+		return _game;
+	};
+
+	class PlayerSmartAI extends Player {
+		constructor() {
+			super();
+			this.type = 'AI';
+		}
+
+		async redraw() {
+			await this._thinking(800);
+			if (Math.random() > 0.4) { // TODO: make this more intelligent
+				return pick(this.hand); 
+			}
+			return null; // skip redraw
+		}
+
+		// 1. Run 100 simulations. A simulation comprises of the following:
+		// 	* pick a card in AI's hand
+		// 	* reasonably predict a card that AI's opponent could play 
+		// 	* repeat until the round is likely to end
+		// 	* subtract AI's score from opponents score
+		// 2. Pick the simultation which has the greatest score advantage.
+		//    (for less difficult AI, run fewer simulations)
+		async play(revive) {
+			//await this._thinking(1800);
+
+			if (revive) {
+				return this.revivedCard;
+			}
+
+			let bestScoreAdvantage = -Infinity,
+				bestCard, bestCardRevived;
+
+			for (let i = 0; i < 200; i++) {
+				await new Promise(resolve => {
+					let game = cloneGame(this.game),
+						cardPlayed, cardRevived,
+						moved, revived,
+						onMove = card => {
+							if (!moved) {
+								moved = true;
+								cardPlayed = card;
+							} else if (!revived) {
+								revived = true;
+								cardRevived = card;
+							}
+						};
+
+					game.on('card-moved', card => onMove(card));
+					game.on('pass', () => onMove());
+					game.on('end-round', (winner, gameEnd) => {
+						if (gameEnd) {
+							let score = game.players[0].score,
+								scoreAdvantage = score - game.players[1].score; // FIXME
+							if (scoreAdvantage > bestScoreAdvantage) {
+								bestScoreAdvantage = scoreAdvantage;
+								bestCard = cardPlayed;
+								bestCardRevived = cardRevived;
+							}
+							//console.log(`Sim#${String(i).padStart(2, '0')}: ${String(scoreAdvantage).padStart(3)} point win (${String(score).padStart(3)} points) with ${cardPlayed ? cardPlayed.name : '[pass]'}`);
+							resolve();
+						}
+					});
+
+					game.turn--;
+					game._nextTurn();
+				});
+			}
+
+			console.log(`Best: ${String(bestScoreAdvantage).padStart(3)} point win with ${bestCard ? bestCard.name : '[pass]'}`);
+			this.revivedCard = bestCardRevived;
+			return bestCard;
+		}
+
+		// Artificial thinking time
+		async _thinking(min, max) {
+			await wait(random(min, max || min));
+		}
+	}
+
+	class IllegalMove extends Error {
+		constructor(reason) {
+			super(`This card cannot be played because ${reason}`);
+		}
+	}
+
+	class IllegalCard extends Error {
+		constructor() {
+			super('The player has no right to pick this card.');
+		}
+	}
+
+	class PlayerHuman extends Player {
+		constructor({ onWaitForRedraw, onWaitForPlay }) {
+			super();
+			this.type = 'Human';
+			this.waitForPlay = onWaitForPlay;
+			this.waitForRedraw = onWaitForRedraw;
+		}
+		// Redraws a card in player's hand. If undefined, no card will be redrawed
+		async redraw(redrawCount) {
+			return await new Promise(resolve => {
+				this.waitForRedraw(redrawCount, card => {
+					if (card && !this.hand.includes(card)) {
+						throw new IllegalCard();
+					}
+					resolve(card);
+				});
+			});
+		}
+		async play(revive, possibleMoves) {
+			return await new Promise(resolve => {
+				this.waitForPlay(revive, card => {
+					if (card) {
+						let move = possibleMoves.find(p => p.card === card);
+						if (!move) {
+							throw new IllegalCard();
+						}
+						if (!move.legal) {
+							throw new IllegalMove(move.reason);
+						}
+					}
+					resolve(card);
+				});
+			});
+		}
+	}
 
 	const $deck = $('#deck');
 	const $players = $('#players');
 	const $status = $('#status');
 	const $arena = $('#arena');
 
+	let resolvePickCard;
+
+	const game = new Game();
+
 	const message = async str => {
 		$status.textContent = str;
 		$status.classList.add('message');
-		await wait(1600);
+		await wait(600);
 		$status.classList.remove('message');
 	};
 
-	const startRenderer = game => {
+	const fanCards = ($pile, cards$$1, cascade, facedown) => { // spread cards as a fan
+		let cardWidth = $('.card').offsetWidth,
+			coords = getCoords($pile),
+			width = Math.min(cardWidth * cards$$1.length, $pile.offsetWidth),
+			x = coords.x + $pile.offsetWidth / 2 - width / 2,
+			offset = width / (cards$$1.length);
+		
+		if (offset < cardWidth) {
+			offset -= (cardWidth - ($pile.offsetWidth / cards$$1.length)) / cards$$1.length;
+		}
 
-		game.on('setup', () => { // render players
-			$players.innerHTML = '';
-			game.players.forEach(player => {
-				let $player = $copy('#tmpl-player');
-				$player.setAttribute('id', `player${player.uid}`);
-				$('.playername', $player).textContent = `${player.name} (${player.type})`;
-				$('.tokens', $player).textContent = `${player.tokens} tokens`;
-				$players.appendChild($player);
-			});
-		});
-
-		let resolvePickCard;
-
-		game.on('redraw', async redrawCount => {
-			await message(`Pick a card to redraw (${redrawCount + 1}/2)`);
-			//enlargeHand();
-			$('#skipredraw').style.display = 'inline-block';
-			resolvePickCard = card => {
-				try {
-					game.redraw(card);
-					resolvePickCard = null;
-					//shrinkHand();
-					$('#skipredraw').style.display = 'none';
-				} catch (e) {
-					$status.textContent = e.message;
-				}
-			};
-		});
-
-		game.on('start-round', async startPlayer => {
-			game.players.forEach(player => {
-				$(`#player${player.uid} .score`).textContent = `0 miles`;
-			});
-			await message('Round start');
-			if (startPlayer.type === 'human') {
-				await message('You will go first');
-			} else {
-				await message('Opponent will go first');
+		cards$$1.forEach((card, i) => {
+			let cx = x + i * offset,
+				cy = coords.y;
+			if (cascade) {
+				cx = coords.x + 2 * Math.min(5, i);
+				cy = coords.y + Math.min(5, i);
 			}
-		});
-
-		game.on('start-turn', async (activePlayer) => {
-			await wait(400);
-			game.players.forEach(player => {
-				$(`#player${player.uid}`).classList.toggle('active', player === activePlayer);
-			});
-			if (activePlayer.type === 'human') {
-				await message('Your turn');
-				$('#pass').style.display = 'inline-block';
-				resolvePickCard = async card => {
-					try {
-						console.log('trying to play', card);
-						await game.play(card);
-						resolvePickCard = null;
-					} catch (e) {
-						message(e.message);
-					}
-				};
-			} else {
-				await message('Opponent\'s turn');
-			}
-		});
-
-		game.on('pass', async player => {
-			if (player.type === 'human') {
-				await message('You have passed');
-			} else {
-				await message('Opponent has passed');
-			}
-		});
-
-		game.on('revive', async player => {
-			if (player.type === 'human') {
-				$('#discard').classList.add('expand');
-				setTimeout(() => fanCards($('#discard'), game.discard), 500);
-				await message('Pick a card to immediately play');
-				resolvePickCard = card => {
-					if (game.play(card)) {
-						$('#discard').classList.remove('expand');
-						setTimeout(() => fanCards($('#discard'), game.discard, true), 500);
-					}
-				};
-			}
-		});
-
-		game.on('end-round', async (winner, gameEnd) => {
-			game.players.forEach(player => {
-				$(`#player${player.uid} .tokens`).textContent = `${player.tokens} tokens`;
-				$(`#player${player.uid}`).classList.remove('active');
-			});
-			await message(`${winner.type === 'human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
-		});
-
-
-		let zIndex = 140;
-		game.on('card-moved', async (card, from, to) => {
 			let $card = renderCard(card);
-			$card.style.zIndex = zIndex++;
-			if (to.pile === 'discard') {
-				let moveToMiddle = from.pile === 'hand';
-				if (moveToMiddle) {
-					$card.style.transform = `translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}px, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}px) scale(3)`;
-					$card.classList.remove('facedown');
-					setTimeout(() => $card.classList.add('discarding'), 1000);
-				} else {
-					$card.classList.add('discarding');
-				}
-				wait(1800).then(() => {
-					fanCards($('#discard'), game.discard, true);
-					$card.classList.add('discarded');
-					setTimeout(() => {
-						$card.classList.remove('discarding');
-					});
-				});
-				await wait(400);
-			}
-			
-			game.players.forEach(player => {
-				fanCards($(`#player${player.uid} .hand`), player.hand, false, player.type === 'ai');
-				fanCards($(`#player${player.uid} .journey-area`), player.journey);
-				fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage, true);
-				let sabotaged = last(player.sabotage);
-				$(`#player${player.uid}`).classList.toggle('sabotaged', !!sabotaged);
-				if (sabotaged) {
-					$(`#player${player.uid} .sabotage-status .icon`).src = `icons/${sabotaged.effect}.svg`;
+			$card.classList.toggle('facedown', !!facedown);
+			$card.style.transform = `translate(${cx}px, ${cy}px)`;
+		});
+	};
+
+	const renderCard = card => {
+		let $card = $(`#card${card.uid}`);
+		if (!$card) {
+			$card = $copy('#tmpl-card');
+			$card.setAttribute('id', `card${card.uid}`);
+			$('.front', $card).src = `/cards/${card.id}-sm.png`;
+			$card.addEventListener('click', () => {
+				if (resolvePickCard) {
+					resolvePickCard(card);
 				}
 			});
-			if (game.turn === -3) { // dealing cards
-				await wait(100);
-			} else {
-				await wait(1200);
-			}
-		});
-
-
-		game.on('end-turn', () => {
-			game.players.forEach(player => {
-				$(`#player${player.uid} .score`).textContent = `${player.score || 0} miles`;
-			});
-		});
-
-		game.on('status', msg => $status.textContent = msg);
-
-		$('#skipredraw').addEventListener('click', () => {
-			if (resolvePickCard) {
-				resolvePickCard();
-			}
-		});
-		$('#pass').addEventListener('click', () => {
-			if (resolvePickCard) {
-				resolvePickCard();
-			}
-		});
-
-		const fanCards = ($pile, cards$$1, cascade, facedown) => { // spread cards as a fan
-			let cardWidth = $('.card').offsetWidth,
-				coords = getCoords($pile),
-				width = Math.min(cardWidth * cards$$1.length, $pile.offsetWidth),
-				x = coords.x + $pile.offsetWidth / 2 - width / 2,
-				offset = width / (cards$$1.length);
-			
-			if (offset < cardWidth) {
-				offset -= (cardWidth - ($pile.offsetWidth / cards$$1.length)) / cards$$1.length;
-			}
-
-			cards$$1.forEach((card, i) => {
-				let cx = x + i * offset,
-					cy = coords.y;
-				if (cascade) {
-					cx = coords.x + 2 * Math.min(5, i);
-					cy = coords.y + Math.min(5, i);
-				}
-				let $card = renderCard(card);
-				$card.classList.toggle('facedown', !!facedown);
-				$card.style.transform = `translate(${cx}px, ${cy}px)`;
-			});
-		};
-
-		const renderCard = card => {
-			let $card = $(`#card${card.uid}`);
-			if (!$card) {
-				$card = $copy('#tmpl-card');
-				$card.setAttribute('id', `card${card.uid}`);
-				$('.front', $card).src = `/cards/${card.id}-sm.png`;
-				$card.addEventListener('click', () => {
-					if (resolvePickCard) {
-						resolvePickCard(card);
-					}
-				});
-				let { x, y } = getCoords($deck);
-				$card.style.transform = `translate(${x}px, ${y}px)`;
-				$arena.appendChild($card);
-			}
-			return $card;
-		};
+			let { x, y } = getCoords($deck);
+			$card.style.transform = `translate(${x}px, ${y}px)`;
+			$arena.appendChild($card);
+		}
+		return $card;
 	};
 
 	// get position of an element relative to the arena
@@ -864,10 +831,174 @@
 		});
 	};
 
+	game.addPlayer(new PlayerSmartAI());
+	game.addPlayer(new PlayerHuman({
+		onWaitForPlay(revive, callback) {
+			console.log('You must now pick a card to play');
+			$('#pass').style.display = 'inline-block';
+			if (revive) {
+				$('#discard').classList.add('expand');
+				setTimeout(() => fanCards($('#discard'), game.discard), 500);
+				message('Pick a card to immediately play');
+			}
+			resolvePickCard = card => {
+				try {
+					console.log(`You picked ${card ? card.name : '[passed]'} to play`);
+					callback(card);
+					$('#pass').style.display = 'none';
+					if (revive) {
+						$('#discard').classList.remove('expand');
+						setTimeout(() => fanCards($('#discard'), game.discard, true), 500);
+					}
+				} catch (e) {
+					console.error('Failed!', e);
+					message(e.message);
+				}
+			};
+		},
+		onWaitForRedraw(redrawCount, callback) {
+			console.log('You may now redraw a card');
+			message(`Pick a card to redraw (${redrawCount + 1}/2)`);
+			$('#skipredraw').style.display = 'inline-block';
+			resolvePickCard = card => {
+				try {
+					console.log(`You picked ${card ? card.name : '[skipped]'}`);
+					callback(card);
+					$('#skipredraw').style.display = 'none';
+				} catch (e) {
+					console.error('Failed!', e);
+					message(e.message);
+				}
+			};
+		}
+	}));
+
+	game.on('setup', () => { // render players
+		console.log(`Setup`);
+		$players.innerHTML = '';
+		game.players.forEach(player => {
+			let $player = $copy('#tmpl-player');
+			$player.setAttribute('id', `player${player.uid}`);
+			$('.playername', $player).textContent = `${player.name} (${player.type})`;
+			$('.tokens', $player).textContent = `${player.tokens} tokens`;
+			$players.appendChild($player);
+		});
+	});
+
+	game.on('start-round', async startPlayer => {
+		console.log(`Start round`);
+		game.players.forEach(player => {
+			$(`#player${player.uid} .score`).textContent = `0 miles`;
+		});
+		await message('Round start');
+		if (startPlayer.type === 'Human') {
+			await message('You will go first');
+		} else {
+			await message('Opponent will go first');
+		}
+	});
+
+	game.on('start-turn', async (activePlayer) => {
+		console.log(`Start turn`);
+		await wait(400);
+		game.players.forEach(player => {
+			$(`#player${player.uid}`).classList.toggle('active', player === activePlayer);
+		});
+		if (activePlayer.type === 'Human') {
+			await message('Your turn');
+		} else {
+			await message('Opponent\'s turn');
+		}
+	});
+
+	game.on('pass', async player => {
+		console.log(`Pass`);
+		if (player.type === 'Human') {
+			await message('You have passed');
+		} else {
+			await message('Opponent has passed');
+		}
+	});
+
+	game.on('end-round', async (winner, gameEnd) => {
+		console.log(`End round`);
+		game.players.forEach(player => {
+			$(`#player${player.uid} .tokens`).textContent = `${player.tokens} tokens`;
+			$(`#player${player.uid}`).classList.remove('active');
+		});
+		await message(`${winner.type === 'Human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
+	});
+
+	let zIndex = 140;
+	game.on('card-moved', async (card, from, to) => {
+		console.log(`%cCard moved: ${card.name.padStart(20)} :: ${from.pile.padStart(8)} → ${to.pile}`, 'color:orange');
+		
+		let $card = renderCard(card);
+		$card.style.zIndex = zIndex++;
+		
+		if (to.pile === 'discard') {
+			let moveToMiddle = from.pile === 'hand';
+			if (moveToMiddle) {
+				$card.style.transform = `translate(${$arena.offsetWidth / 2 - $card.offsetWidth / 2}px, ${$arena.offsetHeight / 2 - $card.offsetHeight / 2}px) scale(3)`;
+				$card.classList.remove('facedown');
+				setTimeout(() => $card.classList.add('discarding'), 1000);
+			} else {
+				$card.classList.add('discarding');
+			}
+			wait(1800).then(() => {
+				fanCards($('#discard'), game.discard, true);
+				$card.classList.add('discarded');
+				setTimeout(() => {
+					$card.classList.remove('discarding');
+				});
+			});
+			await wait(400);
+		}
+		
+		game.players.forEach(player => {
+			fanCards($(`#player${player.uid} .hand`), player.hand, false, player.type === 'AI');
+			fanCards($(`#player${player.uid} .journey-area`), player.journey);
+			fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage, true);
+			let sabotaged = last(player.sabotage);
+			$(`#player${player.uid}`).classList.toggle('sabotaged', !!sabotaged);
+			if (sabotaged) {
+				$(`#player${player.uid} .sabotage-status .icon`).src = `icons/${sabotaged.effect}.svg`;
+			}
+		});
+
+		if (game.turn === -3) { // shorter wait when dealing cards
+			await wait(100);
+		} else {
+			await wait(1200);
+		}
+	});
+
+	game.on('end-turn', () => {
+		console.log(`End turn`);
+		game.players.forEach(player => {
+			$(`#player${player.uid} .score`).textContent = `${player.score || 0} miles`;
+		});
+	});
+
+	game.on('status', msg => {
+		console.log(`%cStatus: ${msg}`, 'color:violet');
+		$status.textContent = msg;
+	});
+
+	$('#skipredraw').addEventListener('click', () => {
+		if (resolvePickCard) {
+			resolvePickCard();
+		}
+	});
+
+	$('#pass').addEventListener('click', () => {
+		if (resolvePickCard) {
+			resolvePickCard();
+		}
+	});
+
 	$('#play').addEventListener('click', () => {
 		$('#dlg-intro').style.display = 'none';
-		let game = newGame();
-		startRenderer(game);
 		game.start();
 	});
 
