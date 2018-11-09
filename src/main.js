@@ -3,7 +3,6 @@
 import { $, $copy, wait, last } from './utils';
 import Game from './Game';
 import PlayerSmartAI from './PlayerSmartAI';
-import PlayerBasicAI from './PlayerBasicAI';
 import PlayerHuman from './PlayerHuman';
 import CARDS from './cards';
 
@@ -11,8 +10,7 @@ const $deck = $('#deck');
 const $players = $('#players');
 const $status = $('#status');
 const $arena = $('#arena');
-
-let resolvePickCard;
+const CARD_WIDTH = $deck.offsetWidth;
 
 const game = new Game();
 
@@ -23,8 +21,8 @@ const message = async str => {
 	$status.classList.remove('message');
 };
 
-const fanCards = ($pile, cards, cascade, facedown) => { // spread cards as a fan
-	let cardWidth = $('.card').offsetWidth,
+const arrangeCards = ($pile, cards, cascade, facedown, order) => {
+	let cardWidth = CARD_WIDTH,
 		coords = getCoords($pile),
 		width = Math.min(cardWidth * cards.length, $pile.offsetWidth),
 		x = coords.x + $pile.offsetWidth / 2 - width / 2,
@@ -32,6 +30,23 @@ const fanCards = ($pile, cards, cascade, facedown) => { // spread cards as a fan
 	
 	if (offset < cardWidth) {
 		offset -= (cardWidth - ($pile.offsetWidth / cards.length)) / cards.length;
+	}
+
+	if (order) {
+		// Sort by sabotage cards first, then remedy cards, then drivers in order of distance
+		cards = cards.map(card => {
+				let index;
+				if (card.type === 'sabotage') {
+					index = `1-${card.effect}`;
+				} else if (card.type === 'remedy') {
+					index = `2-${card.remedies}`;
+				} else {
+					index = `3-${String(card.distance).padStart(5, '0')}`;
+				}
+				return [index, card];
+			})
+			.sort((a, b) => a[0] < b[0] ? -1 : 1)
+			.map(a => a[1]);
 	}
 
 	cards.forEach((card, i) => {
@@ -47,19 +62,17 @@ const fanCards = ($pile, cards, cascade, facedown) => { // spread cards as a fan
 	});
 };
 
+let zIndex = 140;
 const renderCard = card => {
 	let $card = $(`#card${card.uid}`);
 	if (!$card) {
 		$card = $copy('#tmpl-card');
 		$card.setAttribute('id', `card${card.uid}`);
-		$('.front', $card).src = `/cards/${card.id}-sm.png`;
-		$card.addEventListener('click', () => {
-			if (resolvePickCard) {
-				resolvePickCard(card);
-			}
-		});
+		$('.front', $card).src = `assets/cards/${card.id}-sm.png`;
+		$card.addEventListener('click', () => pickCard(card));
 		let { x, y } = getCoords($deck);
 		$card.style.transform = `translate(${x}px, ${y}px)`;
+		$card.style.zIndex = zIndex++;
 		$arena.appendChild($card);
 	}
 	return $card;
@@ -84,24 +97,31 @@ const renderHelp = () => {
 	});
 };
 
-game.addPlayer(new PlayerSmartAI());
+let resolvePickCard;
+const pickCard = card => {
+	if (resolvePickCard) {
+		resolvePickCard(card);
+	}
+};
+
 game.addPlayer(new PlayerHuman({
 	onWaitForPlay(revive, callback) {
 		console.log('You must now pick a card to play');
 		$('#pass').style.display = 'inline-block';
 		if (revive) {
 			$('#discard').classList.add('expand');
-			setTimeout(() => fanCards($('#discard'), game.discard), 500);
+			setTimeout(() => arrangeCards($('#discard'), game.discard), 500);
 			message('Pick a card to immediately play');
 		}
 		resolvePickCard = card => {
 			try {
 				console.log(`You picked ${card ? card.name : '[passed]'} to play`);
 				callback(card);
+				resolvePickCard = null;
 				$('#pass').style.display = 'none';
 				if (revive) {
 					$('#discard').classList.remove('expand');
-					setTimeout(() => fanCards($('#discard'), game.discard, true), 500);
+					setTimeout(() => arrangeCards($('#discard'), game.discard, true), 500);
 				}
 			} catch (e) {
 				console.error('Failed!', e);
@@ -117,6 +137,7 @@ game.addPlayer(new PlayerHuman({
 			try {
 				console.log(`You picked ${card ? card.name : '[skipped]'}`);
 				callback(card);
+				resolvePickCard = null;
 				$('#skipredraw').style.display = 'none';
 			} catch (e) {
 				console.error('Failed!', e);
@@ -125,6 +146,8 @@ game.addPlayer(new PlayerHuman({
 		};
 	}
 }));
+
+game.addPlayer(new PlayerSmartAI());
 
 game.on('setup', () => { // render players
 	console.log(`Setup`);
@@ -136,12 +159,14 @@ game.on('setup', () => { // render players
 		$('.tokens', $player).textContent = `${player.tokens} tokens`;
 		$players.appendChild($player);
 	});
+	arrangeCards($deck, game.deck, true, true);
 });
 
 game.on('start-round', async startPlayer => {
 	console.log(`Start round`);
 	game.players.forEach(player => {
 		$(`#player${player.uid} .score`).textContent = `0 miles`;
+		$(`#player${player.uid} .passed`).style.display = 'none';
 	});
 	await message('Round start');
 	if (startPlayer.type === 'Human') {
@@ -179,10 +204,13 @@ game.on('end-round', async (winner, gameEnd) => {
 		$(`#player${player.uid} .tokens`).textContent = `${player.tokens} tokens`;
 		$(`#player${player.uid}`).classList.remove('active');
 	});
-	await message(`${winner.type === 'Human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
+	if (winner) {
+		await message(`${winner.type === 'Human' ? 'You' : 'Your Opponent'} won the ${gameEnd ? 'game' : 'round'}`);
+	} else {
+		await message(`The round ended in a tie.`);
+	}
 });
 
-let zIndex = 140;
 game.on('card-moved', async (card, from, to) => {
 	console.log(`%cCard moved: ${card.name.padStart(20)} :: ${from.pile.padStart(8)} → ${to.pile}`, 'color:orange');
 	
@@ -199,7 +227,7 @@ game.on('card-moved', async (card, from, to) => {
 			$card.classList.add('discarding');
 		}
 		wait(1800).then(() => {
-			fanCards($('#discard'), game.discard, true);
+			arrangeCards($('#discard'), game.discard, true);
 			$card.classList.add('discarded');
 			setTimeout(() => {
 				$card.classList.remove('discarding');
@@ -207,29 +235,35 @@ game.on('card-moved', async (card, from, to) => {
 		});
 		await wait(400);
 	}
+
+	if (from.pile === 'deck') {
+		arrangeCards($deck, game.deck, true, true);
+	}
+
+	if (game.turn === -3) { // don't animate dealing cards
+		$card.classList.add('dealing');
+		setTimeout(() => $card.classList.remove('dealing'));
+	}
 	
 	game.players.forEach(player => {
-		fanCards($(`#player${player.uid} .hand`), player.hand, false, player.type === 'AI');
-		fanCards($(`#player${player.uid} .journey-area`), player.journey);
-		fanCards($(`#player${player.uid} .sabotage-area`), player.sabotage, true);
+		arrangeCards($(`#player${player.uid} .hand`), player.hand, false, player.type === 'AI', true);
+		arrangeCards($(`#player${player.uid} .journey-area`), player.journey, false, false, true);
+		arrangeCards($(`#player${player.uid} .sabotage-area`), player.sabotage, false, false, true);
 		let sabotaged = last(player.sabotage);
 		$(`#player${player.uid}`).classList.toggle('sabotaged', !!sabotaged);
 		if (sabotaged) {
-			$(`#player${player.uid} .sabotage-status .icon`).src = `icons/${sabotaged.effect}.svg`;
+			$(`#player${player.uid} .sabotage-status .icon`).src = `assets/icons/${sabotaged.effect}.svg`;
 		}
 	});
 
-	if (game.turn === -3) { // shorter wait when dealing cards
-		await wait(100);
-	} else {
-		await wait(1200);
-	}
+	await wait(1200);
 });
 
 game.on('end-turn', () => {
 	console.log(`End turn`);
 	game.players.forEach(player => {
 		$(`#player${player.uid} .score`).textContent = `${player.score || 0} miles`;
+		$(`#player${player.uid} .passed`).style.display = player.passed ? 'inner-block' : 'none';
 	});
 });
 
@@ -238,17 +272,9 @@ game.on('status', msg => {
 	$status.textContent = msg;
 });
 
-$('#skipredraw').addEventListener('click', () => {
-	if (resolvePickCard) {
-		resolvePickCard();
-	}
-});
+$('#skipredraw').addEventListener('click', () => pickCard());
 
-$('#pass').addEventListener('click', () => {
-	if (resolvePickCard) {
-		resolvePickCard();
-	}
-});
+$('#pass').addEventListener('click', () => pickCard());
 
 $('#play').addEventListener('click', () => {
 	$('#dlg-intro').style.display = 'none';
@@ -268,6 +294,5 @@ window.addEventListener('load', () => {
 		ratio1 = window.innerWidth / arenaWidth,
 		ratio2 = window.innerHeight / arenaHeight,
 		ratio = Math.min(ratio1, ratio2);
-
 	$('#viewport').setAttribute('content', `initial-scale=${ratio}, maximum-scale=${ratio}, minimum-scale=${ratio}`);
 });

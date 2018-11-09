@@ -20,25 +20,25 @@
 	font-family: 'Oswald';
 	font-style: normal;
 	font-weight: 300;
-	src: url('./fonts/Oswald-Light.ttf');
+	src: url('fonts/Oswald-Light.ttf');
 }
 @font-face {
 	font-family: 'Oswald';
 	font-style: normal;
 	font-weight: 400;
-	src: url('./fonts/Oswald-Regular.ttf');
+	src: url('fonts/Oswald-Regular.ttf');
 }
 @font-face {
 	font-family: 'Oswald';
 	font-style: normal;
 	font-weight: 500;
-	src: url('./fonts/Oswald-Medium.ttf');
+	src: url('fonts/Oswald-Medium.ttf');
 }
 @font-face {
 	font-family: 'Oswald';
 	font-style: normal;
 	font-weight: 600;
-	src: url('./fonts/Oswald-SemiBold.ttf');
+	src: url('fonts/Oswald-SemiBold.ttf');
 }
 
 
@@ -50,7 +50,7 @@ body {
 	margin: 0;
 	font-family: 'Oswald', sans-serif;
 	font-weight: 300;
-	background: url("assets/felt.jpg") center top;
+	background: url('felt.jpg') center top;
 	overflow: hidden;
 }
 
@@ -139,8 +139,7 @@ button {
 	z-index: 30;
 	cursor: pointer;
 	img {
-		box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5),
-					-0.5px -0.5px 0px rgba(255, 255, 255, 0.3);
+		box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.2);
 		border-radius: 4px;
 		transform: scale(1.0);
 		transition: transform 0.3s ease;
@@ -176,6 +175,9 @@ button {
 		opacity: 0;
 		transition: opacity 0.3s ease-in;
 		z-index: 4;
+	}
+	&.dealing {
+		transition: none;
 	}
 	&.discarding {
 		.burn {
@@ -274,7 +276,7 @@ button {
 				font-size: 20px;
 			}
 		}
-		&:nth-child(1) {
+		&:nth-child(2) {
 			top: 0;
 			.playerinfo {
 				bottom: 10px;
@@ -289,7 +291,7 @@ button {
 				top: @cardheight + 2 * @arenapadding;
 			}
 		}
-		&:nth-child(2) {
+		&:nth-child(1) {
 			top: @arenaheight / 2;
 			.playerinfo {
 				top: 10px;
@@ -314,8 +316,14 @@ button {
 				font-weight: bold;
 				font-size: 14px;
 			}
-			.tokens {
+			.tokens,
+			.passed {
 				font-size: 10px;
+			}
+			.passed {
+				font-weight: bold;
+				color: red;
+				display: none;
 			}
 		}
 		.score {
@@ -338,7 +346,6 @@ button {
 				height: 30px;
 				top: @cardheight / 2 - 15px;
 				left: @cardwidth / 2 - 15px;
-				/*filter: invert(1);*/
 			}
 		}
 		.sabotage-status {

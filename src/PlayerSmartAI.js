@@ -1,4 +1,4 @@
-import { pick, wait, random } from './utils';
+import { random } from './utils';
 import PlayerBasicAI from './PlayerBasicAI';
 import Player from './Player';
 import Game from './Game';
@@ -18,7 +18,7 @@ const cloneGame = game => {
 		_player.journey = [].concat(player.journey);
 		_player.sabotage = [].concat(player.sabotage);
 		_player.tokens = player.tokens;
-		//_player.original = player;
+		_player.original = player;
 		_player.score = player.score;
 		_player.passed = player.passed;
 		return _player;
@@ -33,51 +33,57 @@ export default class PlayerSmartAI extends Player {
 	}
 
 	async redraw() {
-		await this._thinking(800);
-		if (Math.random() > 0.4) { // TODO: make this more intelligent
-			return pick(this.hand); 
-		}
-		return null; // skip redraw
+		return null;
 	}
 
-	// 1. Run 100 simulations. A simulation comprises of the following:
+	async play(revive) {
+		if (revive) {
+			return this.revivedCard;
+		}
+		let simulation = await this._montecarlo(random(1500, 3200));
+		this.revivedCard = simulation.revivedCard;
+		return simulation.card;
+	}
+
+	// 1. Run n simulations. A simulation comprises of the following:
 	// 	* pick a card in AI's hand
 	// 	* reasonably predict a card that AI's opponent could play 
 	// 	* repeat until the round is likely to end
 	// 	* subtract AI's score from opponents score
 	// 2. Pick the simultation which has the greatest score advantage.
 	//    (for less difficult AI, run fewer simulations)
-	async play(revive) {
-		//await this._thinking(1800);
+	async _montecarlo(timelimit) {
+		let deadline = Date.now() + timelimit,
+			bestScoreAdvantage = -Infinity,
+			bestCard, bestCardRevived,
+			i = 0;
 
-		if (revive) {
-			return this.revivedCard;
-		}
-
-		let bestScoreAdvantage = -Infinity,
-			bestCard, bestCardRevived;
-
-		for (let i = 0; i < 200; i++) {
+		while (Date.now() < deadline) {
 			await new Promise(resolve => {
 				let game = cloneGame(this.game),
 					cardPlayed, cardRevived,
-					moved, revived,
-					onMove = card => {
-						if (!moved) {
-							moved = true;
-							cardPlayed = card;
-						} else if (!revived) {
-							revived = true;
-							cardRevived = card;
-						}
-					};
+					moved, revived;
 
-				game.on('card-moved', card => onMove(card));
-				game.on('pass', () => onMove());
+				game.on('pick', card => {
+					if (!moved) {
+						moved = true;
+						cardPlayed = card;
+					} else if (!revived) {
+						revived = true;
+						cardRevived = card;
+					}
+				});
+
+				let j = 0;
 				game.on('end-round', (winner, gameEnd) => {
-					if (gameEnd) {
-						let score = game.players[0].score,
-							scoreAdvantage = score - game.players[1].score; // FIXME
+					j++;
+					if (gameEnd || j > 3) {
+						game.terminate();
+						let aiPlayer = game.players.find(p => p.original === this),
+							aiScore = aiPlayer.score,
+							opponents = game.players.filter(p => p !== aiPlayer),
+							nextHighestScore = Math.max(...opponents.map(p => p.score)),
+							scoreAdvantage = aiScore - nextHighestScore;
 						if (scoreAdvantage > bestScoreAdvantage) {
 							bestScoreAdvantage = scoreAdvantage;
 							bestCard = cardPlayed;
@@ -90,16 +96,11 @@ export default class PlayerSmartAI extends Player {
 
 				game.turn--;
 				game._nextTurn();
+				i++;
 			});
 		}
 
-		console.log(`Best: ${String(bestScoreAdvantage).padStart(3)} point win with ${bestCard ? bestCard.name : '[pass]'}`);
-		this.revivedCard = bestCardRevived;
-		return bestCard;
-	}
-
-	// Artificial thinking time
-	async _thinking(min, max) {
-		await wait(random(min, max || min));
+		console.log(`Best of ${i} simulations: ${String(bestScoreAdvantage).padStart(3)} point win with ${bestCard ? bestCard.name : '[pass]'}`);
+		return { card: bestCard, revivedCard: bestCardRevived };
 	}
 }

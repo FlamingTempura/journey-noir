@@ -1,37 +1,19 @@
 import CARDS from './cards';
-import { times, shuffle, wait, removeEl, pick, Events } from './utils';
+import { shuffle, removeEl, pick, Events } from './utils';
 
 const topCard = arr => arr[arr.length - 1] || {};
 
 const createDeck = () => {
 	let deck = [],
 		i = 0;
-	CARDS.forEach((card, j) => {
-		times(card.quantity, () => {
-			deck.push(Object.assign({ id: j, uid: i++ }, card));
-		});
-	});
+	for (let j in CARDS) {
+		for (let k = 0; k < CARDS[j].quantity; k++) {
+			deck.push(Object.assign({ id: Number(j) + 1, uid: i++ }, CARDS[j]));
+		}
+	}
 	console.log(`Deck contains ${deck.length} cards`);
 	return shuffle(deck);
 };
-
-// Sort by sabotage cards first, then remedy cards, then drivers in order of distance
-const orderCards = cards => {
-	cards.map(card => {
-			let index;
-			if (card.type === 'sabotage') {
-				index = `1-${card.effect}`;
-			} else if (card.type === 'remedy') {
-				index = `2-${card.remedies}`;
-			} else {
-				index = `3-${String(card.distance).padStart(5, '0')}`;
-			}
-			return [index, card];
-		})
-		.sort((a, b) => a[0] < b[0] ? -1 : 1)
-		.forEach((a, i) => cards.splice(i, 1, a[1]));
-};
-
 
 export default class Game extends Events {
 	constructor() {
@@ -47,6 +29,8 @@ export default class Game extends Events {
 	async start() {
 		this.deck = createDeck();
 		this.discard = [];
+		this.round = 0;
+		this.startPlayer = this.players.indexOf(pick(this.players));
 		this.turn = -3; // not yet started
 
 		await this.emit('setup');
@@ -54,7 +38,7 @@ export default class Game extends Events {
 
 		for (let i = 0; i < 10; i++) { // deal 10 cards to each player
 			for (let player of this.players) {
-				await this._moveCard(this.deck[0], this.deck, player.hand);
+				this._moveCard(this.deck[0], this.deck, player.hand);
 			}
 		}
 
@@ -83,16 +67,8 @@ export default class Game extends Events {
 
 	// Move a card from one pile to another
 	async _moveCard(card, from, to) {
-		if (from.indexOf(card) < 0) {
-			console.error('card move fail');
-			console.log(card, from, to, this);
-		}
 		removeEl(from, card);
 		to.push(card);
-		let id = this._identifyPile(to);
-		if (id.pile === 'hand' || id.pile === 'journey') {
-			orderCards(to);
-		}
 		await this.emit('card-moved', card, this._identifyPile(from), this._identifyPile(to));
 	}
 
@@ -100,6 +76,7 @@ export default class Game extends Events {
 	async _awaitRedraw(player, redrawCount = 0) {
 		this.emit('status', `Waiting for ${player.name} (${player.type}) to redraw a card...`);
 		let card = await player.redraw(redrawCount);
+		await this.emit('pick', card);
 		if (card) {
 			this.emit('status', 'Redrawing...');
 			await this._moveCard(card, player.hand, this.discard);
@@ -115,31 +92,47 @@ export default class Game extends Events {
 		for (let player of this.players) {
 			player.passed = false;
 			player.score = 0;
-			for (let pile of [player.journey, player.sabotage]) {
-				let _pile = [].concat(pile); // since we'll be remove items from the array, we need to loop through a copy of the array
-				for (let card of _pile) {
-					this._moveCard(card, pile, this.discard);
-				}
+			for (let card of [].concat(player.journey)) {
+				this._moveCard(card, player.journey, this.discard);
+			}
+			for (let card of [].concat(player.sabotage)) {
+				this._moveCard(card, player.sabotage, this.discard);
 			}
 		}
-		let player = pick(this.players);
+		let player = this.players[this.startPlayer];
 		this.emit('status', `${player.name} (${player.type}) will go first`);
-		this.startPlayer = this.players.indexOf(player); // TODO: set to winner of previous round 
 		await this.emit('start-round', player);
 		this._nextTurn();
 	}
 
 	async _endRound() {
-		let winner = this.players.reduce((a, b) => a.score > b.score ? a : b); // FIXME: does not handle ties
-		winner.tokens++;
-		let gameEnd = winner.tokens === 2;
+		this.round++;
+		let highestScore = Math.max(...this.players.map(p => p.score)),
+			winners = this.players.filter(p => p.score === highestScore),
+			winner;
+		if (winners.length === 1) {
+			winner = winners[0];
+			winner.tokens++;
+			this.startPlayer = this.players.indexOf(winner);
+		}
+		let gameEnd = (winner && winner.tokens === 2) || this.round === 3;
 		await this.emit('end-round', winner, gameEnd);
 		if (!gameEnd) {
+			if (winner) {
+				this._moveCard(topCard(this.deck), this.deck, winner.hand);
+			}
 			this._startRound();
 		}
 	}
 
+	async terminate() {
+		this.terminated = true;
+	}
+
 	async _nextTurn() {
+		if (this.terminated) {
+			return;
+		}
 		this.turn++;
 
 		let playerIndex = (this.turn + this.startPlayer) % this.players.length,
@@ -172,6 +165,8 @@ export default class Game extends Events {
 			possibleMoves = this._getPossibleMoves(player, pile),
 			card = await player.play(reviving, possibleMoves);
 
+		await this.emit('pick', card);
+
 		if (card) {
 			await this._playCard(player, pile, card);
 		}
@@ -193,17 +188,17 @@ export default class Game extends Events {
 		if (card.type === 'sabotage') {
 			if (card.effect === 'detour') {
 				await this._moveCard(card, from, this.discard);
-				let players = this.players.filter(p => !p.journey.find(j => j.prevents === 'detour'));
-				let highest = Math.max(...players.map(p => {
+				let players = this.players.filter(p => !p.journey.find(j => j.prevents === 'detour')),
+					highest = Math.max(...players.map(p => {
 						return Math.max(...p.journey.map(j => j.distance));
 					}));
-				players.forEach(p => {
-					p.journey.forEach(journeyCard => {
+				for (let p of players) {
+					for (let journeyCard of [].concat(p.journey)) {
 						if (journeyCard.distance === highest) {
 							this._moveCard(journeyCard, p.journey, this.discard);
 						}
-					});
-				});
+					}
+				}
 			} else {
 				await this._moveCard(card, from, opponent.sabotage);
 			}
@@ -216,8 +211,10 @@ export default class Game extends Events {
 		if (card.type === 'driver') {
 			if (card.effect === 'turncoat') {
 				await this._moveCard(card, from, opponent.journey);
-				await this._moveCard(this.deck[0], this.deck, player.hand);
-				await this._moveCard(this.deck[0], this.deck, player.hand);
+				await Promise.all([
+					this._moveCard(this.deck[0], this.deck, player.hand),
+					this._moveCard(this.deck[0], this.deck, player.hand)
+				]);
 			} else {
 				await this._moveCard(card, from, player.journey);
 			}
@@ -227,7 +224,7 @@ export default class Game extends Events {
 		}
 
 		if (player.sabotage.length > 0 && card.remedies === topCard(player.sabotage).effect) {
-			for (let sabotageCard of player.sabotage) {
+			for (let sabotageCard of [].concat(player.sabotage)) {
 				this._moveCard(sabotageCard, player.sabotage, this.discard);
 			}
 		}

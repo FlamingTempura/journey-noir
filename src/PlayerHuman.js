@@ -2,7 +2,7 @@ import Player from './Player';
 
 class IllegalMove extends Error {
 	constructor(reason) {
-		super(`This card cannot be played because ${reason}`);
+		super(reason);
 	}
 }
 
@@ -19,6 +19,7 @@ export default class PlayerHuman extends Player {
 		this.waitForPlay = onWaitForPlay;
 		this.waitForRedraw = onWaitForRedraw;
 	}
+
 	// Redraws a card in player's hand. If undefined, no card will be redrawed
 	async redraw(redrawCount) {
 		return await new Promise(resolve => {
@@ -30,6 +31,7 @@ export default class PlayerHuman extends Player {
 			});
 		});
 	}
+	
 	async play(revive, possibleMoves) {
 		return await new Promise(resolve => {
 			this.waitForPlay(revive, card => {

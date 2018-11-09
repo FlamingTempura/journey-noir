@@ -2,25 +2,25 @@
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 300;
-  src: url('./fonts/Oswald-Light.ttf');
+  src: url('fonts/Oswald-Light.ttf');
 }
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 400;
-  src: url('./fonts/Oswald-Regular.ttf');
+  src: url('fonts/Oswald-Regular.ttf');
 }
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 500;
-  src: url('./fonts/Oswald-Medium.ttf');
+  src: url('fonts/Oswald-Medium.ttf');
 }
 @font-face {
   font-family: 'Oswald';
   font-style: normal;
   font-weight: 600;
-  src: url('./fonts/Oswald-SemiBold.ttf');
+  src: url('fonts/Oswald-SemiBold.ttf');
 }
 * {
   box-sizing: border-box;
@@ -29,7 +29,7 @@ body {
   margin: 0;
   font-family: 'Oswald', sans-serif;
   font-weight: 300;
-  background: url("assets/felt.jpg") center top;
+  background: url('felt.jpg') center top;
   overflow: hidden;
 }
 button {
@@ -108,7 +108,7 @@ button {
   cursor: pointer;
 }
 .card img {
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5), -0.5px -0.5px 0px rgba(255, 255, 255, 0.3);
+  box-shadow: 0px 0px 2px rgba(0, 0, 0, 0.2);
   border-radius: 4px;
   transform: scale(1);
   transition: transform 0.3s ease;
@@ -142,6 +142,9 @@ button {
   opacity: 0;
   transition: opacity 0.3s ease-in;
   z-index: 4;
+}
+.card.dealing {
+  transition: none;
 }
 .card.discarding {
   opacity: 0;
@@ -259,34 +262,34 @@ button {
   color: red;
   font-size: 20px;
 }
-#players .player:nth-child(1) {
+#players .player:nth-child(2) {
   top: 0;
 }
-#players .player:nth-child(1) .playerinfo {
+#players .player:nth-child(2) .playerinfo {
   bottom: 10px;
 }
-#players .player:nth-child(1) .hand {
-  top: 5px;
-}
-#players .player:nth-child(1) .sabotage-area,
-#players .player:nth-child(1) .journey-area,
-#players .player:nth-child(1) .score,
-#players .player:nth-child(1) .sabotage-status {
-  top: 93.95721925px;
-}
-#players .player:nth-child(2) {
-  top: 250px;
-}
-#players .player:nth-child(2) .playerinfo {
-  top: 10px;
-}
 #players .player:nth-child(2) .hand {
-  bottom: 5px;
+  top: 5px;
 }
 #players .player:nth-child(2) .sabotage-area,
 #players .player:nth-child(2) .journey-area,
 #players .player:nth-child(2) .score,
 #players .player:nth-child(2) .sabotage-status {
+  top: 93.95721925px;
+}
+#players .player:nth-child(1) {
+  top: 250px;
+}
+#players .player:nth-child(1) .playerinfo {
+  top: 10px;
+}
+#players .player:nth-child(1) .hand {
+  bottom: 5px;
+}
+#players .player:nth-child(1) .sabotage-area,
+#players .player:nth-child(1) .journey-area,
+#players .player:nth-child(1) .score,
+#players .player:nth-child(1) .sabotage-status {
   bottom: 93.95721925px;
 }
 #players .player .playerinfo {
@@ -300,8 +303,14 @@ button {
   font-weight: bold;
   font-size: 14px;
 }
-#players .player .playerinfo .tokens {
+#players .player .playerinfo .tokens,
+#players .player .playerinfo .passed {
   font-size: 10px;
+}
+#players .player .playerinfo .passed {
+  font-weight: bold;
+  color: red;
+  display: none;
 }
 #players .player .score {
   font-size: 14px;
@@ -323,7 +332,6 @@ button {
   height: 30px;
   top: 26.97860963px;
   left: 20.68181818px;
-  /*filter: invert(1);*/
 }
 #players .player .sabotage-status {
   position: absolute;

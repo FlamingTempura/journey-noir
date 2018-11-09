@@ -22,9 +22,9 @@ export default class PlayerBasicAI extends Player {
 				.filter(move => move.legal)
 				.map(move => move.card),
 
-			skipChance = Math.max(0.1, Math.min(0.9, 0.5 - 0.4 * Math.log10(choices.length)));
+			passChance = Math.min(0.1, Math.max(0, (1 + Math.log10(choices.length)) / 200)); // less likely to pass with more cards
 
-		if (choices.length > 0 && Math.random() > skipChance) {
+		if (choices.length > 0 && Math.random() > passChance) {
 			return pick(choices);
 		}
 
